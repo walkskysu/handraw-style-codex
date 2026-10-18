@@ -1,0 +1,16 @@
+[package]
+name = "handraw-style-codex"
+version = "0.1.0"
+description = "A hand-drawn desktop workspace"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "handraw_style_codex_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
