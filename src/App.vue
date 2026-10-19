@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
+import OptionPicker from './components/OptionPicker.vue'
+import { generationOptions, optionCategories, type GenerationSelections } from './services/generationOptions'
 
 const desktop = isDesktop()
 const prompt = ref('')
@@ -8,6 +10,7 @@ const image = ref('')
 const imagePrompt = ref('')
 const error = ref('')
 const pending = ref(false)
+const selections = ref<GenerationSelections>({})
 const errorDialog = ref<HTMLDialogElement | null>(null)
 const promptInput = ref<HTMLTextAreaElement | null>(null)
 const needsCodexUpgrade = computed(() => /requires a newer version of Codex/i.test(error.value))
@@ -28,7 +31,7 @@ async function generate() {
 
   try {
     const submittedPrompt = prompt.value.trim()
-    const result = await generateImage(submittedPrompt)
+    const result = await generateImage(submittedPrompt, { ...selections.value })
     image.value = result
     imagePrompt.value = submittedPrompt
   } catch (cause) {
@@ -65,6 +68,12 @@ function previewFailed() {
             placeholder="比如：一只在窗边喝咖啡的小猫，温暖的阳光，手绘水彩风格"
             :maxlength="MAX_PROMPT_LENGTH" required :disabled="pending" aria-describedby="generation-hint" />
           <p id="generation-hint" class="input-hint">生成可能需要几分钟。每次生成一张图片。</p>
+          <div class="generation-options">
+            <p class="input-hint">可分别选择风格、排版和主题色，也可以全部跳过。已选项优先于描述中对应的要求。</p>
+            <OptionPicker v-for="category in optionCategories" :key="category.key"
+              v-model="selections[category.key]" :category="category.key" :label="category.label"
+              :options="generationOptions[category.key]" :disabled="pending" />
+          </div>
           <button type="submit" :disabled="!desktop || pending || !prompt.trim()">
             {{ pending ? '正在生成…' : '生成图片 ↗' }}
           </button>

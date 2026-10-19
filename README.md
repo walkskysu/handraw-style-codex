@@ -19,11 +19,24 @@
 在项目根目录打开 PowerShell：
 
 ```powershell
+git submodule update --init handraw-style
 npm.cmd ci
 npm.cmd run tauri -- dev
 ```
 
 Tauri 自动启动 Vite 并在屏幕正中央打开桌面窗口。输入画面描述后点击「生成图片」，等待 Codex 完成后即可预览；生成失败时会弹出错误窗口，点击「知道了」或按 Esc 关闭后可以重试。再次生成期间和失败后保留上一张图片。
+
+### 选择手绘风格、排版图型和主题色
+
+描述下方的三个可展开选择器分别提供 **331 种手绘风格、167 种排版图型、36 种经典单色主题色**。每类每页展示 6 张原始图鉴预览，可按编号、名称或分类搜索，并通过「上一页 / 下一页」浏览全部选项。每类最多选择一项；默认全部不选，可单独清除，翻页、搜索和失败重试都会保留选择。
+
+选中项优先于描述中对应的要求：风格控制笔触与材质，排版控制构图与文字层级，单色主题控制配色（覆盖风格或排版示例中的其他颜色）。未选择的类别由描述决定。生成期间选择器暂停编辑。
+
+图鉴数据和预览来自 [yang0/handraw-style](https://github.com/yang0/handraw-style)，与子模块锁定提交保持一致。图片打包在应用中，浏览选项不依赖网络；Rust 内置完整选项规范，校验编号后将规范与描述一起通过 stdin 传给 Codex。4000 字限制仅适用于用户描述。实际图像对规范的遵循程度取决于本地生图模型。
+
+更新子模块后运行 `npm.cmd run catalog:sync` 同步 `src/data/generationCatalog.json`，并提交生成的数据。前端与 Rust 共用这份快照，测试会检查其与子模块的编号、图片和完整提示词一致；CI 会自动检出子模块。首次克隆也可以使用 `git clone --recurse-submodules`。
+
+手动验收：展开各类 → 翻到末页并选中 → 返回前页确认摘要保留 → 清除其中一类 → 提交生成 → 检查结果是否符合其余两类选择；另检查全部不选和只选一类，以及窄窗口下的图片、分页和键盘操作。
 
 ### Codex 生图准备
 
@@ -120,3 +133,5 @@ src-tauri/
 ## 许可证
 
 [MIT](LICENSE)
+
+图鉴、预览图片与提示规范由 **yang0** 提供，原仓库：[yang0/handraw-style](https://github.com/yang0/handraw-style)。上游采用带署名要求的 MIT 许可证，全文随应用分发于 [public/handraw-style-LICENSE.txt](public/handraw-style-LICENSE.txt)。

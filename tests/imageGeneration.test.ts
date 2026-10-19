@@ -21,7 +21,21 @@ describe('image generation IPC', () => {
     mockIPC(ipc)
     const prompt = '小猫\n" & $(echo test) <script>'
     await expect(generateImage(`  ${prompt}  `)).resolves.toBe('data:image/png;base64,test')
-    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt })
+    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt, selections: {} })
+  })
+
+  it.each(Array.from({ length: 8 }, (_, mask) => mask))('passes independent selections through IPC (mask %i)', async (mask) => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    const ipc = vi.fn().mockResolvedValue('data:image/png;base64,test')
+    mockIPC(ipc)
+    const selections = {
+      ...(mask & 1 ? { style: 'FH-044' } : {}),
+      ...(mask & 2 ? { layout: 'EC-024' } : {}),
+      ...(mask & 4 ? { color: 'C-36' } : {}),
+    }
+    // Option specifications must not consume the user's 4000-character allowance.
+    await generateImage('画'.repeat(4000), selections)
+    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt: '画'.repeat(4000), selections })
   })
 
   it.each(['', ' \t\n', '\u3000', '画'.repeat(4001)])('rejects invalid prompts before IPC (%#)', async (prompt) => {

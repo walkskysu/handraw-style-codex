@@ -1,10 +1,16 @@
 mod generation;
+mod options;
 
 #[tauri::command]
-async fn generate_image(prompt: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || generation::generate(&prompt))
-        .await
-        .map_err(|_| "图片生成任务意外结束，请重试。".to_string())?
+async fn generate_image(
+    prompt: String,
+    selections: Option<options::Selections>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        generation::generate(&prompt, &selections.unwrap_or_default())
+    })
+    .await
+    .map_err(|_| "图片生成任务意外结束，请重试。".to_string())?
 }
 
 pub fn run() {
