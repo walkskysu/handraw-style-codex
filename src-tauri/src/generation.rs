@@ -1,3 +1,4 @@
+use crate::options::{apply_selections, Selections};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::{
     env,
@@ -29,8 +30,9 @@ impl Drop for GenerationGuard {
     }
 }
 
-pub fn generate(prompt: &str) -> Result<String, String> {
+pub fn generate(prompt: &str, selections: &Selections) -> Result<String, String> {
     let prompt = validate_prompt(prompt)?;
+    let description = apply_selections(prompt, selections)?;
     let _guard = GenerationGuard::acquire()?;
     let executable = find_codex()?;
     let workspace = tempfile::Builder::new()
@@ -38,7 +40,7 @@ pub fn generate(prompt: &str) -> Result<String, String> {
         .tempdir()
         .map_err(|e| format!("无法创建图片生成目录：{e}"))?;
     let mut command = codex_command(&executable);
-    run_generation(&mut command, workspace.path(), prompt, TIMEOUT)
+    run_generation(&mut command, workspace.path(), &description, TIMEOUT)
 }
 
 fn validate_prompt(prompt: &str) -> Result<&str, String> {
@@ -316,6 +318,32 @@ mod tests {
     }
 
     #[test]
+    fn process_receives_full_selected_specs_without_using_the_user_prompt_allowance() {
+        let workspace = tempfile::tempdir().unwrap();
+        let prompt = "画".repeat(4000);
+        let selections = Selections {
+            style: Some("FA-002".into()),
+            layout: Some("SC-021".into()),
+            color: Some("C-10".into()),
+        };
+        let description = apply_selections(validate_prompt(&prompt).unwrap(), &selections).unwrap();
+        run_generation(
+            &mut fixture_command("success"),
+            workspace.path(),
+            &description,
+            Duration::from_secs(15),
+        )
+        .unwrap();
+        let received = fs::read_to_string(workspace.path().join("received.txt")).unwrap();
+        assert!(received.contains(&prompt));
+        assert!(received.contains("Conceptual Continuous-Line Editorial"));
+        assert!(received.contains("极简线描、连续线"));
+        assert!(received.contains("自适应双拼照片艺术转译型"));
+        assert!(received.contains("Sage Green"));
+        assert!(received.ends_with(&description));
+    }
+
+    #[test]
     fn reports_nonzero_exit_and_missing_image_with_diagnostics() {
         for (case, expected) in [
             ("failure", "codex login"),
@@ -414,7 +442,13 @@ mod tests {
         )
         .is_ok());
         let args = fs::read_to_string(workspace.path().join("args.txt")).unwrap();
-        assert!(args.contains("--ask-for-approval never exec --skip-git-repo-check --sandbox workspace-write --config sandbox_workspace_write.network_access=true --color never -"));
+        // Rust/Windows may quote the config value because it contains '='.
+        // Both spellings deliver the same argument to the npm shim.
+        let normalized = args.replace(
+            "\"sandbox_workspace_write.network_access=true\"",
+            "sandbox_workspace_write.network_access=true",
+        );
+        assert_eq!(normalized.trim(), "--ask-for-approval never exec --skip-git-repo-check --sandbox workspace-write --config sandbox_workspace_write.network_access=true --color never -");
         assert!(fs::read_to_string(workspace.path().join("received.txt"))
             .unwrap()
             .ends_with(prompt));
