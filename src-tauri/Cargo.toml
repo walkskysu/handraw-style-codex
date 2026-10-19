@@ -14,3 +14,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+base64 = "0.22"
+png = "0.18"
+tempfile = "3"
