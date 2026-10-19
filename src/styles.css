@@ -53,6 +53,13 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .response-area { min-height: 84px; padding-top: 15px; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .response-area p { margin-bottom: 0; }
 .error { color: #a22e23; }
+.error-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; color: inherit; background: #fffef9; border: 2px solid #363c31; border-radius: 9px 15px 8px 12px; box-shadow: 6px 7px 0 #dfe4d0; }
+.error-dialog::backdrop { background: #292e2a88; }
+.error-dialog h2 { margin-top: 0; }
+.error-dialog p { line-height: 1.7; overflow-wrap: anywhere; }
+.error-dialog .error { white-space: pre-wrap; font-size: 13px; }
+.upgrade-hint { padding: 0 14px; background: #eef3dc; border: 1px solid #b3b8a9; border-radius: 6px; }
+.upgrade-hint pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .preview-hint { border-top: 1px dashed #c5c8b8; padding-top: 14px; }
 .app-footer { border-top: 1px solid #d5d8ca; padding-top: 20px; font-size: 11px; color: #626a5b; letter-spacing: 1px; }
 

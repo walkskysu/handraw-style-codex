@@ -23,7 +23,7 @@ npm.cmd ci
 npm.cmd run tauri -- dev
 ```
 
-Tauri 自动启动 Vite 并打开桌面窗口。输入画面描述后点击「生成图片」，等待 Codex 完成后即可预览；生成失败时会显示原因，可以直接重试。再次生成期间和失败后保留上一张图片。
+Tauri 自动启动 Vite 并打开桌面窗口。输入画面描述后点击「生成图片」，等待 Codex 完成后即可预览；生成失败时会弹出错误窗口，点击「知道了」或按 Esc 关闭后可以重试。再次生成期间和失败后保留上一张图片。
 
 ### Codex 生图准备
 
@@ -53,6 +53,7 @@ Rust 在后台线程等待，最多运行 10 分钟；Windows 超时会终止包
 
 - **未找到 Codex / 无法启动**：检查 `PATH` 和 `codex.cmd exec --help`，安装后重启应用。
 - **执行失败**：根据界面错误摘要检查 `codex.cmd login`、网络及工具配置。
+- **模型要求更新 Codex**：遇到 `requires a newer version of Codex`（例如使用 `gpt-6-astra` 时）错误，弹窗会提示在终端运行 `npm.cmd install -g @openai/codex@latest`，升级完成后重启 Handraw 并重试。
 - **未输出 result.png**：Codex 未实际生成文件；确认当前模型和生图工具可用，并支持保存 PNG。
 - **超时 / 图片过大或损坏**：缩短描述或要求较小尺寸后重试。
 
@@ -87,7 +88,7 @@ npm.cmd run tauri -- build
 安装程序输出到 `src-tauri/target/release/bundle/nsis/`。首次构建会下载 Rust 依赖及相关打包工具，需要联网。
 PowerShell 使用 `npm.cmd` 可避免 `npm.ps1` 被执行策略拦截；其他系统可使用 `npm`。
 
-前端测试覆盖浏览器限制、空/过长输入、真实 Tauri JS API 的模拟 IPC、等待状态、重复提交保护、失败重试、图片替换、显示失败及文本转义。
+前端测试覆盖浏览器限制、空/过长输入、真实 Tauri JS API 的模拟 IPC、等待状态、重复提交保护、失败重试、图片替换、显示失败、错误弹窗开关与关闭后焦点、版本升级提示及文本转义。jsdom 中模拟原生 dialog API；焦点限制与 Esc 关闭需在桌面 WebView 中手动验收。
 Rust 测试使用本地假 CLI 子进程，覆盖标准输入原样传递、PNG 返回、退出码、无图片输出、找不到程序、超时回收、图片校验及 Windows 带空格路径的 `.cmd` 启动器。测试不调用付费模型，也不需要 Codex 登录。
 模拟 IPC 和假 CLI 测试不等于实际模型或 WebView 的端到端测试。
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
 
 const desktop = isDesktop()
@@ -8,11 +8,22 @@ const image = ref('')
 const imagePrompt = ref('')
 const error = ref('')
 const pending = ref(false)
+const errorDialog = ref<HTMLDialogElement | null>(null)
+const promptInput = ref<HTMLTextAreaElement | null>(null)
+const needsCodexUpgrade = computed(() => /requires a newer version of Codex/i.test(error.value))
+
+async function showError(cause: unknown) {
+  const message = typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : ''
+  error.value = message.trim() ? message : '暂时无法生成图片，请再试一次。'
+  await nextTick()
+  if (!errorDialog.value?.open) errorDialog.value?.showModal()
+}
 
 async function generate() {
   if (pending.value || !desktop) return
 
   error.value = ''
+  errorDialog.value?.close()
   pending.value = true
 
   try {
@@ -21,8 +32,7 @@ async function generate() {
     image.value = result
     imagePrompt.value = submittedPrompt
   } catch (cause) {
-    error.value = typeof cause === 'string' ? cause : cause instanceof Error
-      ? cause.message : '暂时无法生成图片，请再试一次。'
+    await showError(cause)
   } finally {
     pending.value = false
   }
@@ -30,7 +40,7 @@ async function generate() {
 
 function previewFailed() {
   image.value = ''
-  error.value = '图片无法显示，请重新生成。'
+  showError('图片无法显示，请重新生成。')
 }
 </script>
 
@@ -51,7 +61,7 @@ function previewFailed() {
         <p class="intro-copy">写下脑海中的画面，让 Codex 帮你画出来。</p>
         <form :aria-busy="pending" @submit.prevent="generate">
           <label for="prompt">描述你想生成的画面</label>
-          <textarea id="prompt" v-model="prompt" name="prompt" rows="6"
+          <textarea id="prompt" ref="promptInput" v-model="prompt" name="prompt" rows="6"
             placeholder="比如：一只在窗边喝咖啡的小猫，温暖的阳光，手绘水彩风格"
             :maxlength="MAX_PROMPT_LENGTH" required :disabled="pending" aria-describedby="generation-hint" />
           <p id="generation-hint" class="input-hint">生成可能需要几分钟。每次生成一张图片。</p>
@@ -81,6 +91,19 @@ function previewFailed() {
         <p v-if="pending && image" class="input-hint">新画面正在生成，暂时保留上一张作品。</p>
       </section>
     </main>
+
+    <dialog ref="errorDialog" class="error-dialog" role="alertdialog" aria-modal="true"
+      aria-labelledby="error-title" :aria-describedby="needsCodexUpgrade ? 'upgrade-hint error-detail' : 'error-detail'"
+      @close="promptInput?.focus()">
+      <h2 id="error-title">图片生成失败</h2>
+      <div v-if="needsCodexUpgrade" id="upgrade-hint" class="upgrade-hint">
+        <p>当前 Codex 版本过旧，无法使用所选模型。请在终端运行以下命令升级：</p>
+        <pre><code>npm.cmd install -g @openai/codex@latest</code></pre>
+        <p>升级完成后，重新启动 Handraw 并重试。</p>
+      </div>
+      <p id="error-detail" class="error">{{ error }}</p>
+      <button type="button" autofocus @click="errorDialog?.close()">知道了</button>
+    </dialog>
 
     <footer class="app-footer">
       <span>给想象力一点留白。</span>
