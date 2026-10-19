@@ -1,85 +1,185 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import * as core from '@tauri-apps/api/core'
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
 import App from '../src/App.vue'
 
 vi.mock('@tauri-apps/api/core', { spy: true })
-
 enableAutoUnmount(afterEach)
 afterEach(() => clearMocks())
+const image = 'data:image/png;base64,aW1hZ2U='
 
-describe('application shell', () => {
-  it('renders a usable browser preview and greets the entered name', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(false)
-    const wrapper = mount(App)
-
-    expect(wrapper.get('h1').text()).toContain('从这里开始。')
-    expect(wrapper.get('.mode-badge').text()).toBe('浏览器预览')
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
-    await wrapper.get('input').setValue('   ')
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
-    await wrapper.get('input').setValue('小画家')
-    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-
-    expect(wrapper.get('[role="status"]').text()).toBe('你好，小画家！这是浏览器预览。')
-    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+// jsdom does not implement the native dialog API. Model its open/close lifecycle;
+// focus trapping and Escape dismissal remain browser/WebView responsibilities.
+const showModal = vi.fn(function (this: HTMLDialogElement) { this.open = true })
+beforeAll(() => {
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: { configurable: true, value: showModal },
+    close: { configurable: true, value: function (this: HTMLDialogElement) {
+      if (!this.open) return
+      this.open = false
+      this.dispatchEvent(new Event('close'))
+    } },
   })
+})
+afterAll(() => {
+  Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
+  Reflect.deleteProperty(HTMLDialogElement.prototype, 'close')
+})
 
-  it('disables input and prevents duplicate requests while waiting for Rust', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    let resolveGreeting!: (message: string) => void
-    const ipc = vi.fn(() => new Promise<string>((resolve) => { resolveGreeting = resolve }))
+describe('image generation workspace', () => {
+  it('shows an honest browser preview with generation disabled', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(false)
+    const ipc = vi.fn()
     mockIPC(ipc)
     const wrapper = mount(App)
-
-    expect(wrapper.get('.mode-badge').text()).toBe('桌面应用')
-    expect(wrapper.find('.preview-hint').exists()).toBe(false)
-    await wrapper.get('input').setValue('小画家')
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('button').text()).toBe('问候中…')
+    expect(wrapper.get('.mode-badge').text()).toBe('浏览器预览')
+    expect(wrapper.get('.preview-hint').text()).toContain('桌面应用')
+    await wrapper.get('textarea').setValue('小猫')
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('input').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    expect(ipc).not.toHaveBeenCalled()
+    expect(wrapper.find('img').exists()).toBe(false)
+  })
+
+  it('rejects blank submissions and keeps the empty preview', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    const ipc = vi.fn()
+    mockIPC(ipc)
+    const wrapper = mount(App)
+    await wrapper.get('textarea').setValue(' \n ')
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('请先描述')
+    expect(ipc).not.toHaveBeenCalled()
+    expect(wrapper.find('.preview-placeholder').exists()).toBe(true)
+  })
+
+  it('prevents duplicate requests and displays the returned image and prompt', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    let resolveImage!: (result: string) => void
+    const ipc = vi.fn(() => new Promise<string>((resolve) => { resolveImage = resolve }))
+    mockIPC(ipc)
+    const wrapper = mount(App)
+    expect(wrapper.get('.mode-badge').text()).toBe('桌面应用')
+    await wrapper.get('textarea').setValue('  水彩小猫  ')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.get('button').text()).toBe('正在生成…')
+    expect(wrapper.get('textarea').attributes('disabled')).toBeDefined()
     expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[role="status"]').text()).toContain('请稍候')
     await wrapper.get('form').trigger('submit')
     expect(ipc).toHaveBeenCalledTimes(1)
-
-    resolveGreeting('你好，小画家！欢迎来到 Handraw。')
+    resolveImage(image)
     await flushPromises()
-    expect(wrapper.get('[role="status"]').text()).toBe('你好，小画家！欢迎来到 Handraw。')
-    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('img').attributes('src')).toBe(image)
+    expect(wrapper.get('img').attributes('alt')).toBe('水彩小猫')
+    expect(wrapper.get('figcaption').text()).toBe('水彩小猫')
     expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    expect(showModal).not.toHaveBeenCalled()
   })
 
-  it('shows a recoverable error and clears it after a successful retry', async () => {
+  it('preserves the previous image on failure and replaces it after retry', async () => {
     vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const ipc = vi.fn().mockRejectedValueOnce('connection failed').mockResolvedValueOnce('重试成功')
+    const replacement = 'data:image/png;base64,bmV3'
+    const ipc = vi.fn().mockResolvedValueOnce(image)
+      .mockRejectedValueOnce('Codex 执行失败，请检查登录后重试。')
+      .mockResolvedValueOnce(replacement)
     mockIPC(ipc)
     const wrapper = mount(App)
-    await wrapper.get('input').setValue('小画家')
+    await wrapper.get('textarea').setValue('小猫')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-
-    expect(wrapper.get('[role="alert"]').text()).toContain('请再试一次')
+    await wrapper.get('textarea').setValue('小狗')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.get('img').attributes('src')).toBe(image)
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('检查登录')
+    expect(wrapper.get('dialog').element.open).toBe(true)
+    expect(wrapper.get('dialog').text()).toContain('检查登录')
+    expect(wrapper.find('#upgrade-hint').exists()).toBe(false)
+    expect(wrapper.get('figcaption').text()).toBe('小猫')
+    expect(wrapper.get('textarea').element.value).toBe('小狗')
     expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    await wrapper.get('dialog button').trigger('click')
+    expect(wrapper.get('dialog').element.open).toBe(false)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.get('[role="status"]').text()).toBe('重试成功')
-    expect(ipc).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('dialog').element.open).toBe(false)
+    expect(wrapper.get('img').attributes('src')).toBe(replacement)
+    expect(wrapper.get('figcaption').text()).toBe('小狗')
   })
 
-  it('renders the response as text rather than injecting markup', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(false)
+  it('renders prompt and errors as text and handles image load failures', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    const markup = '<img src=x onerror=alert(1)>'
+    mockIPC(vi.fn().mockRejectedValueOnce(markup).mockResolvedValueOnce(image))
     const wrapper = mount(App)
-    await wrapper.get('input').setValue('<img src=x onerror=alert(1)>')
+    await wrapper.get('textarea').setValue(markup)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-
-    expect(wrapper.get('[role="status"]').text()).toContain('<img src=x onerror=alert(1)>')
+    expect(wrapper.get('[role="alert"]').text()).toBe(markup)
+    expect(wrapper.get('#error-detail').text()).toBe(markup)
     expect(wrapper.find('img').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('figcaption').text()).toBe(markup)
+    expect(wrapper.findAll('img')).toHaveLength(1)
+    await wrapper.get('img').trigger('error')
+    await flushPromises()
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('[role="alert"]').text()).toContain('图片无法显示')
+    expect(wrapper.get('dialog').element.open).toBe(true)
+    expect(wrapper.get('#error-detail').text()).toContain('图片无法显示')
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows the requested upgrade command once for repeated CLI version errors and clears it on retry', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    const diagnostic = 'ERROR: ' + JSON.stringify({
+      type: 'error', status: 400,
+      error: { type: 'invalid_request_error', message: "The 'gpt-6-astra' model requires a newer version of Codex. Please upgrade to the latest app or CLI and try again." },
+    })
+    const error = `Codex 执行失败。\n${diagnostic}\n${diagnostic}`
+    mockIPC(vi.fn().mockRejectedValueOnce(error).mockRejectedValueOnce('网络连接失败'))
+    const wrapper = mount(App, { attachTo: document.body })
+    await wrapper.get('textarea').setValue('小猫')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const dialog = wrapper.get('dialog')
+    expect(dialog.element.open).toBe(true)
+    expect(showModal).toHaveBeenCalledTimes(1)
+    expect(dialog.attributes('role')).toBe('alertdialog')
+    expect(dialog.attributes('aria-labelledby')).toBe('error-title')
+    expect(dialog.attributes('aria-describedby')).toBe('upgrade-hint error-detail')
+    expect(dialog.get('#error-detail').text()).toBe(error)
+    expect(dialog.findAll('code')).toHaveLength(1)
+    expect(dialog.get('code').text()).toBe('npm.cmd install -g @openai/codex@latest')
+    await dialog.get('button').trigger('click')
+    expect(dialog.element.open).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('textarea').element)
+    expect(wrapper.get('textarea').element.value).toBe('小猫')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(dialog.element.open).toBe(true)
+    expect(showModal).toHaveBeenCalledTimes(2)
+    expect(dialog.find('#upgrade-hint').exists()).toBe(false)
+    expect(dialog.attributes('aria-describedby')).toBe('error-detail')
+    expect(dialog.get('#error-detail').text()).toBe('网络连接失败')
+  })
+
+  it.each([new Error('Codex 无法启动'), null, '   '])('opens a readable error dialog for non-string or empty failures (%#)', async (cause) => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    mockIPC(() => Promise.reject(cause))
+    const wrapper = mount(App)
+    await wrapper.get('textarea').setValue('小猫')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('dialog').element.open).toBe(true)
+    expect(wrapper.get('#error-detail').text()).toBe(cause instanceof Error ? cause.message : '暂时无法生成图片，请再试一次。')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
 })

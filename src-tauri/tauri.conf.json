@@ -14,6 +14,7 @@
       {
         "label": "main",
         "title": "Handraw · 手绘工作台",
+        "center": true,
         "width": 1100,
         "height": 760,
         "minWidth": 360,

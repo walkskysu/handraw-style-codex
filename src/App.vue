@@ -1,27 +1,46 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { greet, isDesktop } from './services/greeting'
+import { computed, nextTick, ref } from 'vue'
+import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
 
 const desktop = isDesktop()
-const name = ref('')
-const message = ref('')
+const prompt = ref('')
+const image = ref('')
+const imagePrompt = ref('')
 const error = ref('')
 const pending = ref(false)
+const errorDialog = ref<HTMLDialogElement | null>(null)
+const promptInput = ref<HTMLTextAreaElement | null>(null)
+const needsCodexUpgrade = computed(() => /requires a newer version of Codex/i.test(error.value))
 
-async function sayHello() {
-  if (pending.value) return
+async function showError(cause: unknown) {
+  const message = typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : ''
+  error.value = message.trim() ? message : '暂时无法生成图片，请再试一次。'
+  await nextTick()
+  if (!errorDialog.value?.open) errorDialog.value?.showModal()
+}
+
+async function generate() {
+  if (pending.value || !desktop) return
 
   error.value = ''
-  message.value = ''
+  errorDialog.value?.close()
   pending.value = true
 
   try {
-    message.value = await greet(name.value)
-  } catch {
-    error.value = '暂时无法完成问候，请再试一次。'
+    const submittedPrompt = prompt.value.trim()
+    const result = await generateImage(submittedPrompt)
+    image.value = result
+    imagePrompt.value = submittedPrompt
+  } catch (cause) {
+    await showError(cause)
   } finally {
     pending.value = false
   }
+}
+
+function previewFailed() {
+  image.value = ''
+  showError('图片无法显示，请重新生成。')
 }
 </script>
 
@@ -39,34 +58,52 @@ async function sayHello() {
       <section class="intro" aria-labelledby="welcome-title">
         <p class="eyebrow">一张白纸，无限可能</p>
         <h1 id="welcome-title">让灵感，<br /><span>从这里开始。</span></h1>
-        <p class="intro-copy">欢迎来到 Handraw，你的手绘风格工作台。<br />为下一个好点子，留一点自由生长的空间。</p>
-        <div class="sketch" aria-hidden="true">
-          <span class="sketch-star">✳</span>
-          <span class="sketch-note">hello, idea!</span>
-        </div>
-      </section>
-
-      <section class="welcome-card" aria-labelledby="greeting-title">
-        <span class="tape" aria-hidden="true"></span>
-        <p class="eyebrow">初次见面 / HELLO</p>
-        <h2 id="greeting-title">怎么称呼你？</h2>
-        <p>写下名字，向你的新工作台打个招呼。</p>
-        <form :aria-busy="pending" @submit.prevent="sayHello">
-          <label for="name">你的名字</label>
-          <div class="form-row">
-            <input id="name" v-model="name" name="name" autocomplete="given-name" placeholder="比如：小画家" required :disabled="pending" />
-            <button type="submit" :disabled="pending || !name.trim()">
-              {{ pending ? '问候中…' : '打个招呼 ↗' }}
-            </button>
-          </div>
+        <p class="intro-copy">写下脑海中的画面，让 Codex 帮你画出来。</p>
+        <form :aria-busy="pending" @submit.prevent="generate">
+          <label for="prompt">描述你想生成的画面</label>
+          <textarea id="prompt" ref="promptInput" v-model="prompt" name="prompt" rows="6"
+            placeholder="比如：一只在窗边喝咖啡的小猫，温暖的阳光，手绘水彩风格"
+            :maxlength="MAX_PROMPT_LENGTH" required :disabled="pending" aria-describedby="generation-hint" />
+          <p id="generation-hint" class="input-hint">生成可能需要几分钟。每次生成一张图片。</p>
+          <button type="submit" :disabled="!desktop || pending || !prompt.trim()">
+            {{ pending ? '正在生成…' : '生成图片 ↗' }}
+          </button>
         </form>
         <div class="response-area">
           <p v-if="error" role="alert" class="error">{{ error }}</p>
-          <p v-else role="status" aria-live="polite">{{ message || '好点子，从一句「你好」开始。' }}</p>
+          <p role="status" aria-live="polite">{{ pending ? 'Codex 正在绘制，请稍候…' : image ? '图片已生成。可以修改提示词，再画一张。' : '你的下一幅作品，从一句描述开始。' }}</p>
         </div>
-        <p v-if="!desktop" class="preview-hint">当前为浏览器预览，问候将在本地生成。</p>
+        <p v-if="!desktop" class="preview-hint">当前为浏览器预览。请启动桌面应用，并安装、登录本地 Codex 后生成图片。</p>
+      </section>
+
+      <section class="welcome-card" aria-labelledby="preview-title" :aria-busy="pending">
+        <span class="tape" aria-hidden="true"></span>
+        <p class="eyebrow">灵感显影 / PREVIEW</p>
+        <h2 id="preview-title">你的画面</h2>
+        <figure v-if="image" class="image-preview">
+          <img :src="image" :alt="imagePrompt" @error="previewFailed" />
+          <figcaption>{{ imagePrompt }}</figcaption>
+        </figure>
+        <div v-else class="preview-placeholder">
+          <span aria-hidden="true">✳</span>
+          <p>{{ pending ? '画面正在慢慢成形…' : '生成的图片会出现在这里' }}</p>
+        </div>
+        <p v-if="pending && image" class="input-hint">新画面正在生成，暂时保留上一张作品。</p>
       </section>
     </main>
+
+    <dialog ref="errorDialog" class="error-dialog" role="alertdialog" aria-modal="true"
+      aria-labelledby="error-title" :aria-describedby="needsCodexUpgrade ? 'upgrade-hint error-detail' : 'error-detail'"
+      @close="promptInput?.focus()">
+      <h2 id="error-title">图片生成失败</h2>
+      <div v-if="needsCodexUpgrade" id="upgrade-hint" class="upgrade-hint">
+        <p>当前 Codex 版本过旧，无法使用所选模型。请在终端运行以下命令升级：</p>
+        <pre><code>npm.cmd install -g @openai/codex@latest</code></pre>
+        <p>升级完成后，重新启动 Handraw 并重试。</p>
+      </div>
+      <p id="error-detail" class="error">{{ error }}</p>
+      <button type="button" autofocus @click="errorDialog?.close()">知道了</button>
+    </dialog>
 
     <footer class="app-footer">
       <span>给想象力一点留白。</span>

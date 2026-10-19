@@ -10,8 +10,8 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
-button, a, input { -webkit-tap-highlight-color: transparent; }
+button, textarea { font: inherit; }
+button, a, textarea { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid #297957; outline-offset: 5px; }
 
 .app-shell {
@@ -27,29 +27,39 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .brand-mark { display: grid; place-items: center; width: 40px; height: 40px; background: #e6efb5; border: 2px solid #292e2a; border-radius: 10px 6px 12px 5px; transform: rotate(-5deg); }
 .brand-dot { color: #297957; }
 .mode-badge { font-size: 12px; padding: 7px 12px; border: 1px solid #b3b8a9; border-radius: 20px; }
-main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 64px; padding: 76px 0; }
+main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 48px; padding: 40px 0; }
 .intro { position: relative; }
 .eyebrow { font-size: 12px; letter-spacing: 2px; font-weight: 600; color: #626a5b; }
 h1 { font-size: clamp(36px, 4.7vw, 56px); line-height: 1.45; letter-spacing: -2px; margin: 20px 0; }
 h1 span { text-decoration: underline; text-decoration-color: #b7ce79; text-underline-offset: 12px; text-decoration-thickness: 6px; }
 .intro-copy { line-height: 1.9; font-size: 14px; color: #626a5b; margin-top: 30px; }
-.sketch { display: flex; gap: 16px; align-items: center; margin-top: 40px; color: #297957; transform: rotate(-7deg); }
-.sketch-star { font-size: 48px; }
-.sketch-note { font-family: "Segoe Print", cursive; font-size: 22px; }
 .welcome-card { position: relative; padding: 36px 32px 24px; background: #fffef9; border: 2px solid #363c31; border-radius: 9px 15px 8px 12px; box-shadow: 6px 7px 0 #dfe4d0; }
 .tape { position: absolute; top: -15px; left: 36%; width: 100px; height: 29px; background: #e2e9b5dd; transform: rotate(-5deg); }
 h2 { font-size: 25px; margin: 18px 0 12px; }
 .welcome-card > p:not(.eyebrow) { font-size: 13px; line-height: 1.7; color: #626a5b; }
 form { margin-top: 28px; }
 label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 9px; }
-.form-row { display: flex; flex-wrap: wrap; gap: 12px; }
-input { min-width: 0; flex: 1 1 140px; width: 100%; padding: 12px; border: 1px solid #929888; border-radius: 5px 7px 4px 6px; background: #fffef9; color: inherit; }
+textarea { display: block; resize: vertical; min-height: 140px; width: 100%; padding: 12px; line-height: 1.7; border: 1px solid #929888; border-radius: 5px 7px 4px 6px; background: #fffef9; color: inherit; }
+.input-hint, .preview-hint { font-size: 12px; line-height: 1.7; color: #626a5b; }
+.image-preview { margin: 20px 0 0; }
+.image-preview img { display: block; width: 100%; max-height: 460px; object-fit: contain; border-radius: 6px; }
+.image-preview figcaption { margin-top: 16px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview-placeholder { min-height: 320px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; border: 1px dashed #b3b8a9; border-radius: 8px; color: #626a5b; }
+.preview-placeholder span { font-size: 64px; color: #297957; }
+.preview-placeholder p { font-size: 13px; }
 button { padding: 12px 16px; background: #d9eaa3; border: 1.5px solid #363c31; border-radius: 5px 8px 4px 6px; color: #292e2a; font-weight: 600; cursor: pointer; }
 button:hover:not(:disabled) { background: #c9df86; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 .response-area { min-height: 84px; padding-top: 15px; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .response-area p { margin-bottom: 0; }
 .error { color: #a22e23; }
+.error-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; color: inherit; background: #fffef9; border: 2px solid #363c31; border-radius: 9px 15px 8px 12px; box-shadow: 6px 7px 0 #dfe4d0; }
+.error-dialog::backdrop { background: #292e2a88; }
+.error-dialog h2 { margin-top: 0; }
+.error-dialog p { line-height: 1.7; overflow-wrap: anywhere; }
+.error-dialog .error { white-space: pre-wrap; font-size: 13px; }
+.upgrade-hint { padding: 0 14px; background: #eef3dc; border: 1px solid #b3b8a9; border-radius: 6px; }
+.upgrade-hint pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .preview-hint { border-top: 1px dashed #c5c8b8; padding-top: 14px; }
 .app-footer { border-top: 1px solid #d5d8ca; padding-top: 20px; font-size: 11px; color: #626a5b; letter-spacing: 1px; }
 
@@ -57,6 +67,5 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   .app-shell { padding: 24px; }
   main { grid-template-columns: 1fr; gap: 44px; padding: 40px 0; }
   h1 { font-size: 40px; }
-  .sketch { display: none; }
   .welcome-card { padding: 28px 22px 18px; }
 }
