@@ -30,7 +30,7 @@ afterAll(() => {
 })
 
 describe('image generation workspace', () => {
-  it('keeps selections across tabs, search and pages, and locates a selected card from the left panel', async () => {
+  it('keeps selections across tabs and search, and locates a selected card from the left panel', async () => {
     const wrapper = mount(App, { attachTo: document.body })
     const selected = generationOptions.style.at(-1)!
     await wrapper.get('#catalog-search').setValue(selected.id)
@@ -42,7 +42,6 @@ describe('image generation workspace', () => {
     expect(wrapper.get('#color-tab').attributes('aria-selected')).toBe('true')
     await wrapper.get('#catalog-search').setValue('')
     await wrapper.get('[data-option="C-01"]').trigger('click')
-    await wrapper.findAll('.picker-pagination button')[1].trigger('click')
     await wrapper.get('#catalog-search').setValue('no matches')
     expect(summary.text()).toContain(selected.name)
     await summary.get('.selection-link').trigger('click')
@@ -51,7 +50,7 @@ describe('image generation workspace', () => {
     expect(document.activeElement).toBe(wrapper.get('#style-tab').element)
     expect(wrapper.get<HTMLInputElement>('#catalog-search').element.value).toBe('')
     expect(wrapper.get(`[data-option="${selected.id}"]`).attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('.picker-pagination').text()).toContain('37 / 37')
+    expect(wrapper.findAll('.option-card')).toHaveLength(generationOptions.style.length)
     await summary.get('.clear-selection').trigger('click')
     expect(summary.text()).toContain('自由生成')
     expect(summary.find('img').exists()).toBe(false)
