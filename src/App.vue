@@ -39,11 +39,11 @@ async function openCatalog(category: OptionCategory, event: Event) {
   catalogTrigger = event.currentTarget as HTMLElement
   activeCategory.value = category
   await nextTick()
-  await picker.value?.reveal(selections.value[category])
   if (compact.value && !catalogDialog.value?.open) {
     catalogDialog.value?.showModal()
     catalogOpen.value = true
   }
+  await picker.value?.reveal(selections.value[category])
   document.getElementById(`${category}-tab`)?.focus()
 }
 

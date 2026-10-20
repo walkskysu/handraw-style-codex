@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string | undefined] }>()
 const page = ref(1)
 const query = ref('')
+const scrollArea = ref<HTMLElement | null>(null)
 const pageSize = 9
 const filtered = computed(() => {
   const term = query.value.trim().toLocaleLowerCase()
@@ -20,6 +21,9 @@ const filtered = computed(() => {
 const pageCount = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
 const visible = computed(() => filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 watch([query, () => props.category], () => { page.value = 1 })
+watch([page, query, () => props.category], () => {
+  if (scrollArea.value) scrollArea.value.scrollTop = 0
+}, { flush: 'post' })
 
 async function reveal(id?: string) {
   query.value = ''
@@ -27,6 +31,9 @@ async function reveal(id?: string) {
   await nextTick()
   const index = props.options.findIndex((option) => option.id === id)
   page.value = index < 0 ? 1 : Math.floor(index / pageSize) + 1
+  await nextTick()
+  if (scrollArea.value) scrollArea.value.scrollTop = 0
+  scrollArea.value?.querySelector<HTMLElement>('[aria-pressed="true"]')?.scrollIntoView?.({ block: 'nearest' })
 }
 defineExpose({ reveal })
 
@@ -36,8 +43,8 @@ function choose(id?: string) {
 </script>
 
 <template>
-  <div :id="`${category}-panel`" class="option-picker" :data-category="category"
-    role="tabpanel" :aria-labelledby="`${category}-tab`">
+  <div :id="`${category}-panel`" ref="scrollArea" class="option-picker" :data-category="category"
+    role="tabpanel" tabindex="0" :aria-labelledby="`${category}-tab`">
     <fieldset :disabled="disabled">
       <legend class="visually-hidden">{{ label }}</legend>
       <div class="picker-tools">

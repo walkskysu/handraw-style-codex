@@ -6,6 +6,27 @@ import { generationOptions, optionCategories } from '../src/services/generationO
 enableAutoUnmount(afterEach)
 
 describe('paginated image options', () => {
+  it('returns scrolling to the start after paging, searching, switching categories and revealing', async () => {
+    const wrapper = mount(OptionPicker, { props: {
+      category: 'style', label: '风格', options: generationOptions.style,
+    } })
+    const area = wrapper.get<HTMLElement>('[role="tabpanel"]').element
+    expect(area.tabIndex).toBe(0)
+    area.scrollTop = 300
+    await wrapper.findAll('nav button')[1].trigger('click')
+    expect(area.scrollTop).toBe(0)
+    area.scrollTop = 300
+    await wrapper.get('input').setValue('FA-001')
+    expect(area.scrollTop).toBe(0)
+    area.scrollTop = 300
+    await wrapper.setProps({ category: 'color', label: '主题色', options: generationOptions.color })
+    expect(area.scrollTop).toBe(0)
+    await wrapper.get('input').setValue('')
+    area.scrollTop = 300
+    await wrapper.vm.reveal()
+    expect(area.scrollTop).toBe(0)
+  })
+
   it.each(optionCategories)('shows every $label image across bounded pages', async ({ key, label }) => {
     const options = generationOptions[key]
     const wrapper = mount(OptionPicker, { props: { category: key, label, options } })

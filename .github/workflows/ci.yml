@@ -28,6 +28,10 @@ jobs:
         run: npm.cmd ci
       - name: Test Vue components and IPC adapter
         run: npm.cmd test
+      - name: Install Chromium for layout tests
+        run: npx.cmd playwright install --no-shell chromium
+      - name: Test workspace scrolling in Chromium
+        run: npm.cmd run test:layout
       - name: Typecheck and build frontend
         run: npm.cmd run build
       - name: Check Rust formatting
