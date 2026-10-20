@@ -1,12 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import * as core from '@tauri-apps/api/core'
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
 import App from '../src/App.vue'
+import { generationOptions } from '../src/services/generationOptions'
 
 vi.mock('@tauri-apps/api/core', { spy: true })
 enableAutoUnmount(afterEach)
-afterEach(() => clearMocks())
+afterEach(() => { clearMocks(); vi.unstubAllGlobals() })
 const image = 'data:image/png;base64,aW1hZ2U='
 
 // jsdom does not implement the native dialog API. Model its open/close lifecycle;
@@ -28,6 +30,91 @@ afterAll(() => {
 })
 
 describe('image generation workspace', () => {
+  it('keeps selections across tabs, search and pages, and locates a selected card from the left panel', async () => {
+    const wrapper = mount(App, { attachTo: document.body })
+    const selected = generationOptions.style.at(-1)!
+    await wrapper.get('#catalog-search').setValue(selected.id)
+    await wrapper.get(`[data-option="${selected.id}"]`).trigger('click')
+    const summary = wrapper.get('[data-selection="style"]')
+    expect(summary.text()).toContain(selected.name)
+    expect(summary.get('img').attributes('src')).toBe(selected.image)
+    await wrapper.get('#color-tab').trigger('click')
+    expect(wrapper.get('#color-tab').attributes('aria-selected')).toBe('true')
+    await wrapper.get('#catalog-search').setValue('')
+    await wrapper.get('[data-option="C-01"]').trigger('click')
+    await wrapper.findAll('.picker-pagination button')[1].trigger('click')
+    await wrapper.get('#catalog-search').setValue('no matches')
+    expect(summary.text()).toContain(selected.name)
+    await summary.get('.selection-link').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('#style-tab').attributes('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(wrapper.get('#style-tab').element)
+    expect(wrapper.get<HTMLInputElement>('#catalog-search').element.value).toBe('')
+    expect(wrapper.get(`[data-option="${selected.id}"]`).attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('.picker-pagination').text()).toContain('37 / 37')
+    await summary.get('.clear-selection').trigger('click')
+    expect(summary.text()).toContain('自由生成')
+    expect(summary.find('img').exists()).toBe(false)
+    expect(wrapper.get(`[data-option="${selected.id}"]`).attributes('aria-pressed')).toBe('false')
+    expect(wrapper.get('[data-selection="color"]').text()).toContain(generationOptions.color[0]!.name)
+  })
+
+  it('supports arrow, Home and End keys in the category tabs', async () => {
+    const wrapper = mount(App, { attachTo: document.body })
+    for (const [key, category] of [['ArrowRight', 'layout'], ['End', 'color'], ['ArrowRight', 'style'], ['ArrowLeft', 'color'], ['Home', 'style']]) {
+      await wrapper.get('.catalog-tabs').trigger('keydown', { key })
+      expect(wrapper.get(`#${category}-tab`).attributes('aria-selected')).toBe('true')
+      expect(document.activeElement).toBe(wrapper.get(`#${category}-tab`).element)
+      expect(wrapper.findAll('[role="tab"][tabindex="0"]')).toHaveLength(1)
+      expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(`${category}-tab`)
+    }
+  })
+
+  it('opens the narrow-window catalog, restores focus, and keeps state when moving between layouts', async () => {
+    let resize!: (event: { matches: boolean }) => void
+    const removeEventListener = vi.fn()
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      addEventListener: (_event: string, listener: typeof resize) => { resize = listener },
+      removeEventListener,
+    })))
+    const wrapper = mount(App, { attachTo: document.body })
+    await nextTick()
+    const dialog = wrapper.get<HTMLDialogElement>('#catalog-dialog')
+    expect(wrapper.get('main').classes()).toContain('compact-workspace')
+    expect(dialog.element.open).toBe(false)
+    expect(wrapper.get('main').find('.catalog-panel').exists()).toBe(false)
+    const opener = wrapper.get('.open-catalog')
+    await opener.trigger('click')
+    await flushPromises()
+    expect(dialog.element.open).toBe(true)
+    expect(opener.attributes('aria-expanded')).toBe('true')
+    await dialog.get('[data-option="FA-001"]').trigger('click')
+    await dialog.get('.close-catalog').trigger('click')
+    expect(dialog.element.open).toBe(false)
+    expect(document.activeElement).toBe(opener.element)
+    await wrapper.get('[data-selection="style"] .selection-link').trigger('click')
+    await flushPromises()
+    expect(dialog.element.open).toBe(true)
+    expect(dialog.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
+    resize({ matches: false })
+    await flushPromises()
+    expect(dialog.element.open).toBe(false)
+    expect(wrapper.get('main .catalog-panel [data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
+    resize({ matches: true })
+    await flushPromises()
+    expect(dialog.element.open).toBe(false)
+    await wrapper.get('.open-catalog').trigger('click')
+    await flushPromises()
+    expect(dialog.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
+    // Native Escape emits close; jsdom models the same lifecycle here.
+    dialog.element.close()
+    await nextTick()
+    expect(wrapper.get('.open-catalog').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+    expect(removeEventListener).toHaveBeenCalledWith('change', resize)
+  })
+
   it('submits all three selections, preserves them on failure, and allows independent clearing', async () => {
     vi.spyOn(core, 'isTauri').mockReturnValue(true)
     const ipc = vi.fn().mockRejectedValueOnce('请重试').mockResolvedValueOnce(image)
@@ -35,9 +122,9 @@ describe('image generation workspace', () => {
     const wrapper = mount(App)
     await wrapper.get('textarea').setValue('小猫')
     for (const [category, id] of [['style', 'FH-044'], ['layout', 'EC-024'], ['color', 'C-36']]) {
-      const picker = wrapper.get(`[data-category="${category}"]`)
-      await picker.get('input').setValue(id)
-      await picker.get(`[data-option="${id}"]`).trigger('click')
+      await wrapper.get(`#${category}-tab`).trigger('click')
+      await wrapper.get('#catalog-search').setValue(id)
+      await wrapper.get(`[data-option="${id}"]`).trigger('click')
     }
     await wrapper.get('form').trigger('submit')
     expect(wrapper.findAll('fieldset').every((field) => field.attributes('disabled') !== undefined)).toBe(true)
@@ -45,9 +132,9 @@ describe('image generation workspace', () => {
     expect(ipc).toHaveBeenNthCalledWith(1, 'generate_image', {
       prompt: '小猫', selections: { style: 'FH-044', layout: 'EC-024', color: 'C-36' },
     })
-    expect(wrapper.get('[data-category="style"] summary').text()).toContain('FH-044')
-    await wrapper.get('[data-category="layout"] .clear-selection').trigger('click')
-    expect(wrapper.get('[data-category="layout"] summary').text()).toContain('未选择')
+    expect(wrapper.get('[data-selection="style"] img').attributes('src')).toBeTruthy()
+    await wrapper.get('[data-selection="layout"] .clear-selection').trigger('click')
+    expect(wrapper.get('[data-selection="layout"]').text()).toContain('未选择')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(ipc).toHaveBeenNthCalledWith(2, 'generate_image', {
@@ -91,12 +178,20 @@ describe('image generation workspace', () => {
     mockIPC(ipc)
     const wrapper = mount(App)
     expect(wrapper.get('.mode-badge').text()).toBe('桌面应用')
+    await wrapper.get('[data-option="FA-001"]').trigger('click')
     await wrapper.get('textarea').setValue('  水彩小猫  ')
     await wrapper.get('form').trigger('submit')
     expect(wrapper.get('button[type="submit"]').text()).toBe('正在生成…')
     expect(wrapper.get('textarea').attributes('disabled')).toBeDefined()
     expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('[role="status"]').text()).toContain('请稍候')
+    expect(wrapper.get('.generation-status').text()).toBe('生成中')
+    expect(wrapper.get('.submitted-prompt').text()).toContain('水彩小猫')
+    const clear = wrapper.get('[data-selection="style"] .clear-selection')
+    expect(clear.attributes('disabled')).toBeDefined()
+    await clear.trigger('click')
+    await wrapper.get('[data-option="FA-002"]').trigger('click')
+    expect(wrapper.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
     await wrapper.get('form').trigger('submit')
     expect(ipc).toHaveBeenCalledTimes(1)
     resolveImage(image)
@@ -105,6 +200,8 @@ describe('image generation workspace', () => {
     expect(wrapper.get('.image-preview img').attributes('alt')).toBe('水彩小猫')
     expect(wrapper.get('figcaption').text()).toBe('水彩小猫')
     expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
+    expect(wrapper.get('.generation-status').text()).toBe('已完成')
+    expect(wrapper.find('.submitted-prompt').exists()).toBe(false)
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
     expect(showModal).not.toHaveBeenCalled()
   })
@@ -125,18 +222,20 @@ describe('image generation workspace', () => {
     expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('检查登录')
-    expect(wrapper.get('dialog').element.open).toBe(true)
-    expect(wrapper.get('dialog').text()).toContain('检查登录')
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').text()).toContain('检查登录')
     expect(wrapper.find('#upgrade-hint').exists()).toBe(false)
     expect(wrapper.get('figcaption').text()).toBe('小猫')
+    expect(wrapper.get('.generation-status').text()).toBe('生成失败')
+    expect(wrapper.get('.submitted-prompt').text()).toContain('小狗')
     expect(wrapper.get('textarea').element.value).toBe('小狗')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    await wrapper.get('dialog button').trigger('click')
-    expect(wrapper.get('dialog').element.open).toBe(false)
+    await wrapper.get('.error-dialog button').trigger('click')
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(false)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.get('dialog').element.open).toBe(false)
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(false)
     expect(wrapper.get('.image-preview img').attributes('src')).toBe(replacement)
     expect(wrapper.get('figcaption').text()).toBe('小狗')
   })
@@ -160,7 +259,7 @@ describe('image generation workspace', () => {
     await flushPromises()
     expect(wrapper.find('.image-preview img').exists()).toBe(false)
     expect(wrapper.get('[role="alert"]').text()).toContain('图片无法显示')
-    expect(wrapper.get('dialog').element.open).toBe(true)
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
     expect(wrapper.get('#error-detail').text()).toContain('图片无法显示')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
@@ -177,7 +276,7 @@ describe('image generation workspace', () => {
     await wrapper.get('textarea').setValue('小猫')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    const dialog = wrapper.get('dialog')
+    const dialog = wrapper.get<HTMLDialogElement>('.error-dialog')
     expect(dialog.element.open).toBe(true)
     expect(showModal).toHaveBeenCalledTimes(1)
     expect(dialog.attributes('role')).toBe('alertdialog')
@@ -206,7 +305,7 @@ describe('image generation workspace', () => {
     await wrapper.get('textarea').setValue('小猫')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('dialog').element.open).toBe(true)
+    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
     expect(wrapper.get('#error-detail').text()).toBe(cause instanceof Error ? cause.message : '暂时无法生成图片，请再试一次。')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
