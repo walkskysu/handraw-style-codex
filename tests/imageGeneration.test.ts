@@ -17,10 +17,11 @@ describe('image generation IPC', () => {
 
   it('passes a trimmed, otherwise unchanged prompt to Rust', async () => {
     vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const ipc = vi.fn().mockResolvedValue('data:image/png;base64,test')
+    const result = { id: 'artwork', image: 'data:image/png;base64,test', save_error: null }
+    const ipc = vi.fn().mockResolvedValue(result)
     mockIPC(ipc)
     const prompt = '小猫\n" & $(echo test) <script>'
-    await expect(generateImage(`  ${prompt}  `)).resolves.toBe('data:image/png;base64,test')
+    await expect(generateImage(`  ${prompt}  `)).resolves.toEqual(result)
     expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt, selections: {} })
   })
 

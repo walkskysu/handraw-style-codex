@@ -2,9 +2,22 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
 import OptionPicker from './components/OptionPicker.vue'
+import GalleryView from './components/GalleryView.vue'
+import { discardPending, exportArtwork, message, retrySave, type Artwork, type Generated } from './services/gallery'
 import { generationOptions, optionCategories, type GenerationSelections, type OptionCategory } from './services/generationOptions'
 
 const desktop = isDesktop()
+const view = ref<'workspace' | 'gallery'>('workspace')
+const generated = ref<Generated | null>(null)
+const saving = ref(false)
+const exportNotes = ref(true)
+const saveNotice = ref('')
+const exportError = ref('')
+const reused = ref<Artwork | null>(null)
+const baseline = ref(JSON.stringify({ prompt: '', selections: {} }))
+const reuseDialog = ref<HTMLDialogElement | null>(null)
+const replacement = ref<Artwork | null>(null)
+const draft = () => JSON.stringify({ prompt: prompt.value, selections: selections.value })
 const prompt = ref('')
 const image = ref('')
 const imagePrompt = ref('')
@@ -24,7 +37,9 @@ const compactMedia = window.matchMedia?.('(max-width: 1199px)')
 const compact = ref(compactMedia?.matches ?? false)
 let previewTrigger: HTMLElement | null = null
 const selectedOptions = computed(() => Object.fromEntries(optionCategories.map(({ key }) =>
-  [key, generationOptions[key].find((option) => option.id === selections.value[key])],
+  [key, reused.value?.snapshot[key]?.id === selections.value[key] && reused.value?.snapshot[key]
+    ? { ...reused.value.snapshot[key], image: generationOptions[key].find(o => o.id === selections.value[key])?.image }
+    : generationOptions[key].find((option) => option.id === selections.value[key])],
 )))
 const status = computed(() => pending.value ? '生成中' : error.value ? '生成失败' : image.value ? '已完成' : '待创作')
 
@@ -77,7 +92,7 @@ async function showError(cause: unknown) {
 }
 
 async function generate() {
-  if (pending.value || !desktop) return
+  if (pending.value || saving.value || generated.value?.save_error || !desktop) return
 
   error.value = ''
   errorDialog.value?.close()
@@ -85,14 +100,76 @@ async function generate() {
 
   try {
     submittedPrompt.value = prompt.value.trim()
-    const result = await generateImage(submittedPrompt.value, { ...selections.value })
-    image.value = result
+    const result = await generateImage(submittedPrompt.value, { ...selections.value }, reused.value?.id)
+    generated.value = result
+    image.value = result.image
     imagePrompt.value = submittedPrompt.value
+    baseline.value = draft()
+    saveNotice.value = result.save_error ? '' : '已保存到图库'
+    exportError.value = ''
   } catch (cause) {
     await showError(cause)
   } finally {
     pending.value = false
   }
+}
+
+async function saveAgain() {
+  if (!generated.value || saving.value) return
+  saving.value = true
+  try {
+    await retrySave(generated.value.id)
+    generated.value.save_error = null
+    saveNotice.value = '已保存到图库'
+  } catch (cause) { generated.value.save_error = message(cause) }
+  finally { saving.value = false }
+}
+
+async function exportPreview() {
+  if (!generated.value || saving.value) return
+  saving.value = true; exportError.value = ''
+  try {
+    if (await exportArtwork(generated.value.id, exportNotes.value)) saveNotice.value = '已导出图片'
+  } catch (cause) { exportError.value = message(cause) }
+  finally { saving.value = false }
+}
+
+async function discardExported() {
+  if (!generated.value?.save_error || saving.value || saveNotice.value !== '已导出图片') return
+  saving.value = true
+  try {
+    await discardPending(generated.value.id)
+    generated.value = null
+    saveNotice.value = ''
+  } catch (cause) { exportError.value = message(cause) }
+  finally { saving.value = false }
+}
+
+function requestReuse(artwork: Artwork) {
+  if (pending.value || saving.value) return
+  replacement.value = artwork
+  if (draft() !== baseline.value || generated.value?.save_error) reuseDialog.value?.showModal()
+  else applyReuse()
+}
+
+function applyReuse() {
+  if (!replacement.value) return
+  reused.value = replacement.value
+  prompt.value = replacement.value.prompt
+  selections.value = Object.fromEntries(optionCategories.flatMap(({ key }) => {
+    const option = replacement.value!.snapshot[key]
+    return option ? [[key, option.id]] : []
+  }))
+  baseline.value = draft()
+  // The failed preview remains available for retry/export after refilling the form.
+  view.value = 'workspace'
+  reuseDialog.value?.close()
+  nextTick(() => promptInput.value?.focus())
+}
+
+function changeView(next: 'workspace' | 'gallery') {
+  previewDialog.value?.close()
+  view.value = next
 }
 
 function previewFailed() {
@@ -108,13 +185,18 @@ function previewFailed() {
         <span>handraw.</span>
       </a>
       <h1>灵感工作台</h1>
+      <nav class="app-navigation" aria-label="工作区">
+        <button type="button" :aria-current="view === 'workspace' ? 'page' : undefined" @click="changeView('workspace')">创作工作台</button>
+        <button type="button" :aria-current="view === 'gallery' ? 'page' : undefined" @click="changeView('gallery')">我的图库</button>
+      </nav>
       <span class="mode-badge">{{ desktop ? '桌面应用' : '浏览器预览' }}</span>
     </header>
 
     <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
       @close="closePreview" @click="($event.target === previewDialog) && previewDialog?.close()"></dialog>
 
-    <main id="main" :class="{ 'compact-workspace': compact }">
+    <GalleryView v-if="view === 'gallery'" :generation-pending="pending || saving" :revision="generated?.id" @reuse="requestReuse" />
+    <main v-show="view === 'workspace'" id="main" :class="{ 'compact-workspace': compact }">
       <section class="creation-panel panel" aria-labelledby="creation-title">
         <form :aria-busy="pending" @submit.prevent="generate">
           <h2 id="creation-title"><label for="prompt">创作描述</label></h2>
@@ -129,7 +211,7 @@ function previewFailed() {
             <div v-for="category in optionCategories" :key="category.key" class="selection-row" :data-selection="category.key">
               <button type="button" class="selection-link"
                 :title="selectedOptions[category.key]?.id" @click="openCatalog(category.key)">
-                <img v-if="selectedOptions[category.key]" :src="selectedOptions[category.key]!.image" alt="" />
+                <img v-if="selectedOptions[category.key]?.image" :src="selectedOptions[category.key]!.image" alt="" />
                 <span v-else class="selection-placeholder" aria-hidden="true">＋</span>
                 <span><small>{{ categoryLabels[category.key] }}</small>
                   <strong>{{ selectedOptions[category.key]?.name ?? '未选择 · 自由生成' }}</strong>
@@ -142,10 +224,11 @@ function previewFailed() {
             <p class="input-hint">未选类别将按描述自由生成</p>
           </div>
           <div class="generation-action">
-            <button type="submit" :disabled="!desktop || pending || !prompt.trim()">
+            <button type="submit" :disabled="!desktop || pending || saving || !!generated?.save_error || !prompt.trim()">
               {{ pending ? '正在生成…' : '生成图片 ↗' }}
             </button>
             <p id="generation-hint" class="input-hint">每次生成一张 · 通常需要几分钟</p>
+            <p v-if="generated?.save_error" class="input-hint">请先在作品预览中重试保存，或导出后放弃本次图库保存，再继续生成。</p>
           </div>
         </form>
         <p v-if="!desktop" class="preview-hint">当前为浏览器预览。请启动桌面应用，并安装、登录本地 Codex 后生成图片。</p>
@@ -186,6 +269,15 @@ function previewFailed() {
             <p>{{ pending ? '画面正在慢慢成形…' : '生成的图片会出现在这里' }}</p>
           </div>
           <div class="response-area">
+            <div v-if="generated" class="save-controls">
+              <p v-if="generated.save_error" role="alert" class="error">图库保存失败：{{ generated.save_error }}。预览已保留；关闭应用前请重试或导出。</p>
+              <p class="save-status" aria-live="polite">{{ saving ? '正在处理…' : saveNotice }}</p>
+              <button v-if="generated.save_error" type="button" :disabled="saving" @click="saveAgain">重试保存</button>
+              <label><input v-model="exportNotes" type="checkbox" /> 同时导出提示词说明</label>
+              <button type="button" :disabled="saving" @click="exportPreview">导出图片</button>
+              <button v-if="generated.save_error && saveNotice === '已导出图片'" type="button" :disabled="saving" @click="discardExported">放弃本次图库保存</button>
+              <p v-if="exportError" role="alert" class="error">{{ exportError }}</p>
+            </div>
             <p v-if="(pending || error) && submittedPrompt && submittedPrompt !== imagePrompt" class="submitted-prompt">本次描述：{{ submittedPrompt }}</p>
             <p v-if="error" role="alert" class="error">{{ error }}</p>
             <p role="status" aria-live="polite">{{ pending ? 'Codex 正在绘制，请稍候…' : error ? '请重试，描述和已选配置均已保留。' : image ? '图片已生成。可以修改描述，再画一张。' : '你的下一幅作品，从一句描述开始。' }}</p>
@@ -194,6 +286,13 @@ function previewFailed() {
         </section>
       </Teleport>
     </main>
+
+    <dialog ref="reuseDialog" class="confirmation-dialog reuse-dialog" aria-labelledby="reuse-title">
+      <h2 id="reuse-title">替换当前编辑？</h2>
+      <p>当前有未保存的编辑或尚未保存到图库的作品。复用将替换描述与配置，已有预览仍会保留。</p>
+      <button type="button" @click="applyReuse">确认复用</button>
+      <button type="button" @click="reuseDialog?.close()">取消</button>
+    </dialog>
 
     <dialog ref="errorDialog" class="error-dialog" role="alertdialog" aria-modal="true"
       aria-labelledby="error-title" :aria-describedby="needsCodexUpgrade ? 'upgrade-hint error-detail' : 'error-detail'"

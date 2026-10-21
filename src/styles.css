@@ -89,10 +89,10 @@ textarea::placeholder { color: #929891; }
 .submitted-prompt { max-height: 100px; overflow: auto; margin-bottom: 10px; color: #39483f; white-space: pre-wrap; }
 .response-area .input-hint { margin-top: 6px; }
 .error { color: #a22e23; }
-.error-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 48px); overflow: auto; padding: 24px; color: inherit; background: #fffef9; border: 1px solid var(--border); border-radius: 10px; }
+.error-dialog, .confirmation-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 48px); overflow: auto; padding: 24px; color: inherit; background: #fffef9; border: 1px solid var(--border); border-radius: 10px; }
 .error-dialog::backdrop, .preview-dialog::backdrop { background: #202d2866; }
 .error-dialog h2 { margin-bottom: 16px; }
-.error-dialog p { margin: 14px 0; line-height: 1.7; overflow-wrap: anywhere; }
+.error-dialog p, .confirmation-dialog p { margin: 14px 0; line-height: 1.7; overflow-wrap: anywhere; }
 .error-dialog .error { white-space: pre-wrap; font-size: 13px; }
 .upgrade-hint { padding: 0 14px; background: #edf2e9; border: 1px solid var(--border); border-radius: 6px; }
 .upgrade-hint pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
@@ -104,6 +104,44 @@ textarea::placeholder { color: #929891; }
 .preview-dialog .preview-panel { height: 100%; border: 0; border-radius: 0; }
 .close-preview { padding: 4px 12px; font-size: 24px; }
 .open-preview { font-size: 12px; color: var(--green); padding: 7px 9px; }
+.app-navigation { display: flex; gap: 6px; }
+.app-navigation button { padding: 8px 12px; white-space: nowrap; }
+.app-navigation [aria-current="page"] { color: white; background: var(--green); }
+.gallery-view { flex: 1; min-height: 0; overflow: auto; }
+.gallery-tools, .gallery-pagination, .artwork-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gallery-tools { margin-bottom: 20px; }
+.gallery-view input:not([type="checkbox"]) { padding: 8px; border: 1px solid var(--border); border-radius: 6px; color: inherit; background: #fffef9; max-width: 100%; }
+.gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.gallery-card { padding: 10px; text-align: left; min-width: 0; }
+.gallery-card img { width: 100%; height: clamp(120px, 22vh, 240px); object-fit: contain; background: #f2f0e9; border-radius: 6px; }
+.gallery-card strong, .gallery-card time { display: block; margin-top: 8px; overflow-wrap: anywhere; }
+.gallery-card time { color: var(--muted); font-size: 12px; }
+.gallery-pagination { justify-content: center; margin-top: 20px; }
+.artwork-dialog { width: min(1200px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; color: inherit; background: #fffef9; border: 1px solid var(--border); border-radius: 10px; overflow: auto; }
+.artwork-dialog::backdrop, .reuse-dialog::backdrop { background: #202d2866; }
+.artwork-detail { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; }
+.artwork-original { width: 100%; max-height: 78dvh; object-fit: contain; position: sticky; top: 0; }
+.artwork-info { min-width: 0; overflow-wrap: anywhere; line-height: 1.7; }
+.artwork-info fieldset { padding: 0; border: 0; min-width: 0; }
+.artwork-info label { display: block; margin-bottom: 10px; }
+.artwork-info label input:not([type="checkbox"]) { display: block; width: 100%; }
+.artwork-info h3 { font-size: 15px; margin-top: 18px; }
+.artwork-info details, .artwork-info .input-hint { margin: 12px 0; }
+.preserve-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.save-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.save-controls p, .save-controls label { width: 100%; }
+.save-status { color: var(--green); }
+.purge-confirm { margin-top: 16px; padding: 12px; border: 1px solid #a22e23; border-radius: 6px; }
+@media (max-width: 900px) {
+  .app-header h1 { display: none; }
+  .artwork-detail { grid-template-columns: minmax(0, 1fr); }
+  .artwork-original { position: static; max-height: 45dvh; }
+}
+@media (max-width: 639px) {
+  .app-navigation { order: 3; width: 100%; }
+  .gallery-grid { grid-template-columns: minmax(0, 1fr); }
+  .gallery-tools label:first-child { width: 100%; }
+}
 @media (max-width: 1399px) {
   .app-shell { padding: 12px; }
   .panel { padding: 16px; }
