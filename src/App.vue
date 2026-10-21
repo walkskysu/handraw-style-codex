@@ -18,38 +18,39 @@ const needsCodexUpgrade = computed(() => /requires a newer version of Codex/i.te
 const activeCategory = ref<OptionCategory>('style')
 const categoryLabels = { style: '风格', layout: '排版', color: '主题色' }
 const picker = ref<InstanceType<typeof OptionPicker> | null>(null)
-const catalogDialog = ref<HTMLDialogElement | null>(null)
-const catalogOpen = ref(false)
+const previewDialog = ref<HTMLDialogElement | null>(null)
+const previewOpen = ref(false)
 const compactMedia = window.matchMedia?.('(max-width: 1199px)')
 const compact = ref(compactMedia?.matches ?? false)
-let catalogTrigger: HTMLElement | null = null
+let previewTrigger: HTMLElement | null = null
 const selectedOptions = computed(() => Object.fromEntries(optionCategories.map(({ key }) =>
   [key, generationOptions[key].find((option) => option.id === selections.value[key])],
 )))
 const status = computed(() => pending.value ? '生成中' : error.value ? '生成失败' : image.value ? '已完成' : '待创作')
 
-function resizeCatalog(event: MediaQueryListEvent) {
-  if (!event.matches) catalogDialog.value?.close()
+function resizeWorkspace(event: MediaQueryListEvent) {
+  if (!event.matches) previewDialog.value?.close()
   compact.value = event.matches
 }
-compactMedia?.addEventListener('change', resizeCatalog)
-onBeforeUnmount(() => compactMedia?.removeEventListener('change', resizeCatalog))
+compactMedia?.addEventListener('change', resizeWorkspace)
+onBeforeUnmount(() => compactMedia?.removeEventListener('change', resizeWorkspace))
 
-async function openCatalog(category: OptionCategory, event: Event) {
-  catalogTrigger = event.currentTarget as HTMLElement
+async function openCatalog(category: OptionCategory) {
   activeCategory.value = category
   await nextTick()
   await picker.value?.reveal(selections.value[category])
-  if (compact.value && !catalogDialog.value?.open) {
-    catalogDialog.value?.showModal()
-    catalogOpen.value = true
-  }
   document.getElementById(`${category}-tab`)?.focus()
 }
 
-function closeCatalog() {
-  catalogOpen.value = false
-  catalogTrigger?.focus()
+function openPreview(event: Event) {
+  previewTrigger = event.currentTarget as HTMLElement
+  previewDialog.value?.showModal()
+  previewOpen.value = true
+}
+
+function closePreview() {
+  previewOpen.value = false
+  previewTrigger?.focus()
 }
 
 function moveTab(event: KeyboardEvent) {
@@ -110,8 +111,8 @@ function previewFailed() {
       <span class="mode-badge">{{ desktop ? '桌面应用' : '浏览器预览' }}</span>
     </header>
 
-    <dialog id="catalog-dialog" ref="catalogDialog" class="catalog-dialog" aria-labelledby="catalog-title"
-      @close="closeCatalog" @click="($event.target === catalogDialog) && catalogDialog?.close()"></dialog>
+    <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
+      @close="closePreview" @click="($event.target === previewDialog) && previewDialog?.close()"></dialog>
 
     <main id="main" :class="{ 'compact-workspace': compact }">
       <section class="creation-panel panel" aria-labelledby="creation-title">
@@ -124,12 +125,10 @@ function previewFailed() {
           <div class="generation-options">
             <div class="section-heading">
               <h2>已选配置</h2>
-              <button v-if="compact" type="button" class="open-catalog" aria-haspopup="dialog"
-                aria-controls="catalog-dialog" :aria-expanded="catalogOpen" @click="openCatalog('style', $event)">选择风格</button>
             </div>
             <div v-for="category in optionCategories" :key="category.key" class="selection-row" :data-selection="category.key">
               <button type="button" class="selection-link"
-                :title="selectedOptions[category.key]?.id" @click="openCatalog(category.key, $event)">
+                :title="selectedOptions[category.key]?.id" @click="openCatalog(category.key)">
                 <img v-if="selectedOptions[category.key]" :src="selectedOptions[category.key]!.image" alt="" />
                 <span v-else class="selection-placeholder" aria-hidden="true">＋</span>
                 <span><small>{{ categoryLabels[category.key] }}</small>
@@ -152,46 +151,48 @@ function previewFailed() {
         <p v-if="!desktop" class="preview-hint">当前为浏览器预览。请启动桌面应用，并安装、登录本地 Codex 后生成图片。</p>
       </section>
 
-      <Teleport :to="catalogDialog ?? 'body'" :disabled="!compact">
-        <section class="catalog-panel panel" aria-labelledby="catalog-title">
+      <section class="catalog-panel panel" aria-labelledby="catalog-title">
+        <div class="section-heading">
+          <h2 id="catalog-title">灵感图鉴</h2>
+          <button v-if="compact" type="button" class="open-preview" aria-haspopup="dialog"
+            aria-controls="preview-dialog" :aria-expanded="previewOpen" @click="openPreview">查看作品 · {{ status }}</button>
+        </div>
+        <div class="catalog-tabs" role="tablist" aria-label="图鉴类别" @keydown="moveTab">
+          <button v-for="category in optionCategories" :id="`${category.key}-tab`" :key="category.key"
+            type="button" role="tab" :aria-selected="activeCategory === category.key"
+            :aria-controls="activeCategory === category.key ? `${category.key}-panel` : undefined"
+            :tabindex="activeCategory === category.key ? 0 : -1" @click="activeCategory = category.key">
+            {{ categoryLabels[category.key] }} <small>{{ generationOptions[category.key].length }}</small>
+          </button>
+        </div>
+        <OptionPicker ref="picker" v-model="selections[activeCategory]" :category="activeCategory"
+          :label="categoryLabels[activeCategory]" :options="generationOptions[activeCategory]" :disabled="pending" />
+      </section>
+
+      <Teleport :to="previewDialog ?? 'body'" :disabled="!compact">
+        <section class="preview-panel panel" aria-labelledby="preview-title" :aria-busy="pending">
           <div class="section-heading">
-            <h2 id="catalog-title">灵感图鉴</h2>
-            <button v-if="compact" type="button" class="close-catalog" aria-label="关闭图鉴"
-              @click="catalogDialog?.close()">×</button>
+            <h2 id="preview-title">作品预览</h2>
+            <span class="generation-status" :data-state="pending ? 'pending' : error ? 'error' : 'ready'">{{ status }}</span>
+            <button v-if="compact" type="button" class="close-preview" aria-label="关闭作品预览"
+              @click="previewDialog?.close()">×</button>
           </div>
-          <div class="catalog-tabs" role="tablist" aria-label="图鉴类别" @keydown="moveTab">
-            <button v-for="category in optionCategories" :id="`${category.key}-tab`" :key="category.key"
-              type="button" role="tab" :aria-selected="activeCategory === category.key"
-              :aria-controls="activeCategory === category.key ? `${category.key}-panel` : undefined"
-              :tabindex="activeCategory === category.key ? 0 : -1" @click="activeCategory = category.key">
-              {{ categoryLabels[category.key] }} <small>{{ generationOptions[category.key].length }}</small>
-            </button>
+          <figure v-if="image" class="image-preview">
+            <img :src="image" :alt="imagePrompt" @error="previewFailed" />
+            <figcaption>{{ imagePrompt }}</figcaption>
+          </figure>
+          <div v-else class="preview-placeholder">
+            <span aria-hidden="true">✳</span>
+            <p>{{ pending ? '画面正在慢慢成形…' : '生成的图片会出现在这里' }}</p>
           </div>
-          <OptionPicker ref="picker" v-model="selections[activeCategory]" :category="activeCategory"
-            :label="categoryLabels[activeCategory]" :options="generationOptions[activeCategory]" :disabled="pending" />
+          <div class="response-area">
+            <p v-if="(pending || error) && submittedPrompt && submittedPrompt !== imagePrompt" class="submitted-prompt">本次描述：{{ submittedPrompt }}</p>
+            <p v-if="error" role="alert" class="error">{{ error }}</p>
+            <p role="status" aria-live="polite">{{ pending ? 'Codex 正在绘制，请稍候…' : error ? '请重试，描述和已选配置均已保留。' : image ? '图片已生成。可以修改描述，再画一张。' : '你的下一幅作品，从一句描述开始。' }}</p>
+            <p v-if="image" class="input-hint">生成新图时保留上一张作品</p>
+          </div>
         </section>
       </Teleport>
-
-      <section class="preview-panel panel" aria-labelledby="preview-title" :aria-busy="pending">
-        <div class="section-heading">
-          <h2 id="preview-title">作品预览</h2>
-          <span class="generation-status" :data-state="pending ? 'pending' : error ? 'error' : 'ready'">{{ status }}</span>
-        </div>
-        <figure v-if="image" class="image-preview">
-          <img :src="image" :alt="imagePrompt" @error="previewFailed" />
-          <figcaption>{{ imagePrompt }}</figcaption>
-        </figure>
-        <div v-else class="preview-placeholder">
-          <span aria-hidden="true">✳</span>
-          <p>{{ pending ? '画面正在慢慢成形…' : '生成的图片会出现在这里' }}</p>
-        </div>
-        <div class="response-area">
-          <p v-if="(pending || error) && submittedPrompt && submittedPrompt !== imagePrompt" class="submitted-prompt">本次描述：{{ submittedPrompt }}</p>
-          <p v-if="error" role="alert" class="error">{{ error }}</p>
-          <p role="status" aria-live="polite">{{ pending ? 'Codex 正在绘制，请稍候…' : error ? '请重试，描述和已选配置均已保留。' : image ? '图片已生成。可以修改描述，再画一张。' : '你的下一幅作品，从一句描述开始。' }}</p>
-          <p v-if="image" class="input-hint">生成新图时保留上一张作品</p>
-        </div>
-      </section>
     </main>
 
     <dialog ref="errorDialog" class="error-dialog" role="alertdialog" aria-modal="true"
