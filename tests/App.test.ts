@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import * as core from '@tauri-apps/api/core'
-import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
+import { clearMocks, mockIPC as installIPC } from '@tauri-apps/api/mocks'
 import App from '../src/App.vue'
 import { generationOptions } from '../src/services/generationOptions'
 
@@ -10,6 +10,12 @@ vi.mock('@tauri-apps/api/core', { spy: true })
 enableAutoUnmount(afterEach)
 afterEach(() => { clearMocks(); vi.unstubAllGlobals() })
 const image = 'data:image/png;base64,aW1hZ2U='
+// Keep generation scenarios concise while exercising the structured desktop response.
+const mockIPC = (callback: Parameters<typeof installIPC>[0]) => installIPC(async (...args) => {
+  const result = await callback(...args)
+  return typeof result === 'string' && result.startsWith('data:image/')
+    ? { id: 'generated-artwork', image: result, save_error: null } : result
+})
 
 // jsdom does not implement the native dialog API. Model its open/close lifecycle;
 // focus trapping and Escape dismissal remain browser/WebView responsibilities.

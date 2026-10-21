@@ -1,4 +1,4 @@
-use crate::options::{apply_selections, Selections};
+use crate::options::{apply_snapshot, Snapshot};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::{
     env,
@@ -30,17 +30,70 @@ impl Drop for GenerationGuard {
     }
 }
 
-pub fn generate(prompt: &str, selections: &Selections) -> Result<String, String> {
+pub struct Output {
+    pub image: String,
+    pub tool_version: Option<String>,
+}
+
+pub fn generate(prompt: &str, snapshot: &Snapshot) -> Result<Output, String> {
     let prompt = validate_prompt(prompt)?;
-    let description = apply_selections(prompt, selections)?;
+    let description = apply_snapshot(prompt, snapshot);
     let _guard = GenerationGuard::acquire()?;
     let executable = find_codex()?;
+    let tool_version = codex_version(&executable);
     let workspace = tempfile::Builder::new()
         .prefix("handraw-")
         .tempdir()
         .map_err(|e| format!("无法创建图片生成目录：{e}"))?;
     let mut command = codex_command(&executable);
-    run_generation(&mut command, workspace.path(), &description, TIMEOUT)
+    let image = run_generation(&mut command, workspace.path(), &description, TIMEOUT)?;
+    Ok(Output {
+        image,
+        tool_version,
+    })
+}
+
+// Read only the explicit version output, never authentication or model configuration.
+fn codex_version(executable: &Path) -> Option<String> {
+    let mut output = tempfile::tempfile().ok()?;
+    let mut command = Command::new(executable);
+    command
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::from(output.try_clone().ok()?));
+    hide_window(&mut command);
+    let mut child = RunningChild(command.spawn().ok()?);
+    let start = Instant::now();
+    loop {
+        if let Some(status) = child.0.try_wait().ok()? {
+            if !status.success() {
+                return None;
+            }
+            break;
+        }
+        if start.elapsed() > Duration::from_secs(3) {
+            return None;
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+    output.rewind().ok()?;
+    let mut text = String::new();
+    output.take(256).read_to_string(&mut text).ok()?;
+    parse_version(&text)
+}
+
+fn parse_version(text: &str) -> Option<String> {
+    let version = text.trim().strip_prefix("codex-cli ")?;
+    if version.is_empty()
+        || !version.starts_with(|c: char| c.is_ascii_digit())
+        || !version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || ".-+".contains(c))
+    {
+        return None;
+    }
+    Some(text.trim().into())
 }
 
 fn validate_prompt(prompt: &str) -> Result<&str, String> {
@@ -126,20 +179,24 @@ impl Drop for RunningChild {
     }
 }
 
-fn run_generation(
-    command: &mut Command,
-    workspace: &Path,
-    prompt: &str,
-    timeout: Duration,
-) -> Result<String, String> {
-    let instructions = format!(
+pub fn instructions(prompt: &str) -> String {
+    format!(
         "Generate exactly one image using your available image-generation tool or skill. \
          Save the actual generated image as PNG at ./result.png in the current directory. \
          If the tool saves elsewhere, copy/convert that image to ./result.png. \
          Do not substitute a programmatically drawn placeholder. If image generation is \
          unavailable, explain the missing setup and fail without creating result.png. \
          Do not modify files outside this working directory.\n\nImage description:\n{prompt}"
-    );
+    )
+}
+
+fn run_generation(
+    command: &mut Command,
+    workspace: &Path,
+    prompt: &str,
+    timeout: Duration,
+) -> Result<String, String> {
+    let instructions = instructions(prompt);
     // File-backed stdin avoids a blocked pipe if CLI startup fails before reading input.
     let mut input = tempfile::tempfile().map_err(|e| format!("无法准备提示词：{e}"))?;
     input
@@ -242,6 +299,17 @@ fn read_image(workspace: &Path) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::options::{apply_selections, Selections};
+
+    #[test]
+    fn records_only_explicit_cli_version_output() {
+        assert_eq!(
+            parse_version("codex-cli 0.99.0\n"),
+            Some("codex-cli 0.99.0".into())
+        );
+        assert!(parse_version("login required").is_none());
+        assert!(parse_version("codex-cli 1.0\nsecret").is_none());
+    }
 
     const PNG: &[u8] = include_bytes!("../icons/icon.png");
 
