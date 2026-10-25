@@ -3,10 +3,12 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
 import OptionPicker from './components/OptionPicker.vue'
 import GalleryView from './components/GalleryView.vue'
+import AboutSettings from './components/AboutSettings.vue'
 import { discardPending, exportArtwork, message, retrySave, type Artwork, type Generated } from './services/gallery'
 import { generationOptions, optionCategories, type GenerationSelections, type OptionCategory } from './services/generationOptions'
 
 const desktop = isDesktop()
+const updateLocked = ref(false)
 const view = ref<'workspace' | 'gallery'>('workspace')
 const generated = ref<Generated | null>(null)
 const saving = ref(false)
@@ -92,7 +94,7 @@ async function showError(cause: unknown) {
 }
 
 async function generate() {
-  if (pending.value || saving.value || generated.value?.save_error || !desktop) return
+  if (pending.value || saving.value || generated.value?.save_error || updateLocked.value || !desktop) return
 
   error.value = ''
   errorDialog.value?.close()
@@ -190,6 +192,7 @@ function previewFailed() {
         <button type="button" :aria-current="view === 'gallery' ? 'page' : undefined" @click="changeView('gallery')">我的图库</button>
       </nav>
       <span class="mode-badge">{{ desktop ? '桌面应用' : '浏览器预览' }}</span>
+      <AboutSettings :working="pending || saving" :unsaved="!!generated?.save_error" @lock="updateLocked = $event" />
     </header>
 
     <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
@@ -224,10 +227,11 @@ function previewFailed() {
             <p class="input-hint">未选类别将按描述自由生成</p>
           </div>
           <div class="generation-action">
-            <button type="submit" :disabled="!desktop || pending || saving || !!generated?.save_error || !prompt.trim()">
+            <button type="submit" :disabled="!desktop || pending || saving || updateLocked || !!generated?.save_error || !prompt.trim()">
               {{ pending ? '正在生成…' : '生成图片 ↗' }}
             </button>
             <p id="generation-hint" class="input-hint">每次生成一张 · 通常需要几分钟</p>
+            <p v-if="updateLocked" class="input-hint">已预约更新，当前任务和作品保存完成后将安装。可在设置中取消。</p>
             <p v-if="generated?.save_error" class="input-hint">请先在作品预览中重试保存，或导出后放弃本次图库保存，再继续生成。</p>
           </div>
         </form>

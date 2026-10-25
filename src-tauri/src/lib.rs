@@ -1,6 +1,7 @@
 mod gallery;
 mod generation;
 mod options;
+mod updates;
 
 use std::{collections::HashMap, sync::Mutex};
 use tauri::Manager;
@@ -9,6 +10,26 @@ use tauri::Manager;
 struct GalleryState {
     store: Option<gallery::Store>,
     pending: HashMap<String, gallery::PendingArtwork>,
+    work: updates::WorkState,
+}
+
+// Owned by the blocking job itself, so cancellation of the IPC future cannot release it early.
+struct WorkGuard(tauri::AppHandle);
+
+impl WorkGuard {
+    fn begin(app: &tauri::AppHandle) -> Result<Self, String> {
+        with_gallery(app, |s| s.work.begin())?;
+        Ok(Self(app.clone()))
+    }
+}
+
+impl Drop for WorkGuard {
+    fn drop(&mut self) {
+        let _ = with_gallery(&self.0, |s| {
+            s.work.finish();
+            Ok(())
+        });
+    }
 }
 
 impl GalleryState {
@@ -58,7 +79,9 @@ async fn generate_image(
     selections: Option<options::Selections>,
     reuse_id: Option<String>,
 ) -> Result<Generated, String> {
+    let work = WorkGuard::begin(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
+        let _work = work;
         let previous = reuse_id
             .map(|id| with_gallery(&app, |s| Ok(s.store(&app)?.get(&id)?.snapshot)))
             .transpose()?;
@@ -163,6 +186,7 @@ async fn gallery_export(
     id: String,
     include_notes: bool,
 ) -> Result<bool, String> {
+    let work = WorkGuard::begin(&app)?;
     let (artwork, bytes) = with_gallery(&app, |s| {
         if let Some(pending) = s.pending.get(&id) {
             return Ok((pending.artwork.clone(), pending.bytes.clone()));
@@ -191,6 +215,7 @@ async fn gallery_export(
         return Err("请使用 .png 扩展名导出图片。".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
+        let _work = work;
         gallery::export_to(&path, &bytes, &artwork, include_notes)
     })
     .await
@@ -200,7 +225,11 @@ async fn gallery_export(
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(GalleryState::default()))
+        .manage(tauri::async_runtime::Mutex::new(
+            updates::UpdateState::default(),
+        ))
         .invoke_handler(tauri::generate_handler![
             generate_image,
             gallery_list,
@@ -209,7 +238,12 @@ pub fn run() {
             gallery_discard_pending,
             gallery_update,
             gallery_purge,
-            gallery_export
+            gallery_export,
+            updates::update_about,
+            updates::update_check,
+            updates::update_download,
+            updates::update_install,
+            updates::update_manual
         ])
         .run(tauri::generate_context!())
         .expect("启动 Handraw 时发生错误");

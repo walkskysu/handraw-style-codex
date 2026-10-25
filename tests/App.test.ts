@@ -36,6 +36,40 @@ afterAll(() => {
 })
 
 describe('image generation workspace', () => {
+  it('holds an update until a generated artwork is saved and blocks new generations while queued', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    let finishGeneration!: (value: unknown) => void
+    const ipc = vi.fn((cmd: string) => {
+      if (cmd === 'generate_image') return new Promise(resolve => { finishGeneration = resolve })
+      if (cmd === 'update_about') return { current_version: '0.2.4', install_error: null }
+      if (cmd === 'update_check') return { version: '0.3.0', notes: '更新说明' }
+      return undefined
+    })
+    mockIPC(ipc)
+    const wrapper = mount(App)
+    const click = async (label: string) => {
+      await wrapper.findAll('button').find(b => b.text() === label)!.trigger('click')
+      await flushPromises()
+    }
+    await wrapper.get('textarea').setValue('小猫')
+    await wrapper.get('form').trigger('submit')
+    await click('设置')
+    await click('下载更新')
+    await click('重启并安装')
+    expect(ipc.mock.calls.some(([cmd]) => cmd === 'update_install')).toBe(false)
+    finishGeneration({ id: 'pending-art', image, save_error: '磁盘空间不足' })
+    await flushPromises()
+    expect(ipc.mock.calls.some(([cmd]) => cmd === 'update_install')).toBe(false)
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(1)
+    await wrapper.get('[aria-label="关闭设置"]').trigger('click')
+    await click('重试保存')
+    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'update_install')).toHaveLength(1)
+    const commands = ipc.mock.calls.map(([cmd]) => cmd)
+    expect(commands.indexOf('gallery_retry')).toBeLessThan(commands.indexOf('update_install'))
+  })
+
   it('keeps selections across tabs and search, and locates a selected card from the left panel', async () => {
     const wrapper = mount(App, { attachTo: document.body })
     const selected = generationOptions.style.at(-1)!
