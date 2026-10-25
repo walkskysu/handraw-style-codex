@@ -1,6 +1,6 @@
 [package]
 name = "handraw-style-codex"
-version = "0.2.3"
+version = "0.2.4"
 description = "A hand-drawn desktop workspace"
 edition = "2021"
 license = "MIT"

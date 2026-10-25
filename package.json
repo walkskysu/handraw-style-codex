@@ -1,6 +1,6 @@
 {
   "name": "handraw-style-codex",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "description": "A hand-drawn desktop workspace built with Vue and Tauri.",
@@ -9,12 +9,14 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "version:set": "node scripts/set-version.mjs",
     "catalog:sync": "node scripts/sync-catalog.mjs",
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
+    "test:version": "node --test scripts/set-version.test.mjs",
     "test:layout": "playwright test",
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",

@@ -184,7 +184,7 @@ mod tests {
                 catalog.layout.len(),
                 catalog.color.len()
             ),
-            (331, 167, 36)
+            (366, 170, 36)
         );
         for (category, options) in [
             ("style", catalog.style),
