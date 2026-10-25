@@ -1,6 +1,6 @@
 {
   "name": "handraw-style-codex",
-  "version": "0.1.0",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "description": "A hand-drawn desktop workspace built with Vue and Tauri.",
