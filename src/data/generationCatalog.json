@@ -1730,6 +1730,13 @@
       "prompt": "The Legend of Sealed Book Animation Style。"
     },
     {
+      "id": "FE-068",
+      "name": "Tangshan Shadow Puppet",
+      "group": "FE 新国风与传统工艺 / Chinese Traditional & Folk Craft",
+      "image": "images/individual/FE/FE-068.webp",
+      "prompt": "Tangshan Shadow Puppet。"
+    },
+    {
       "id": "FF-001",
       "name": "Stylized 3D Cartoon Personality",
       "group": "FF 3D黏土毛毡与纸雕 / 3D Clay, Felt & Papercraft",
@@ -2316,422 +2323,247 @@
       "group": "FH 先锋实验与综合媒介 / Mixed Media & Impasto Arts",
       "image": "images/individual/FH/FH-044.webp",
       "prompt": "Claude Monet。"
+    },
+    {
+      "id": "FI-001",
+      "name": "Apple Minimalist Tech Product Commercial Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-001.webp",
+      "prompt": "Apple Minimalist Tech Product Commercial Photography。极简；高级感科技白；精确布光；细腻产品质感；纯净背景与精准倒影。"
+    },
+    {
+      "id": "FI-002",
+      "name": "MUJI Japanese Naturalist Warm Home Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-002.webp",
+      "prompt": "MUJI Japanese Naturalist Warm Home Photography。日式自然主义；白灰与原木色；柔和漫射日光；松弛居家生活；质朴陶器与绿植。"
+    },
+    {
+      "id": "FI-003",
+      "name": "IKEA Nordic Cozy Lifestyle Interior Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-003.webp",
+      "prompt": "IKEA Nordic Cozy Lifestyle Interior Photography。北欧日常温馨；小户型家居；真实生活场景；温暖亲切自然；功能美学与生活杂物感。"
+    },
+    {
+      "id": "FI-004",
+      "name": "Aesop Earthy Terrazzo Minimalist Botanical Space Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-004.webp",
+      "prompt": "Aesop Earthy Terrazzo Minimalist Botanical Space Photography。大地色调；极简空间；水磨石与粗糙石材；绿植；低调高级感；琥珀色药剂瓶与温润微光。"
+    },
+    {
+      "id": "FI-005",
+      "name": "Nike Dynamic Athletic Action & Dramatic Contrast Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-005.webp",
+      "prompt": "Nike Dynamic Athletic Action & Dramatic Contrast Photography。运动瞬间；汗水与肌肉；动态抓拍；高对比戏剧光；速度感与力量爆发。"
+    },
+    {
+      "id": "FI-006",
+      "name": "Patagonia Rugged Wilderness & Extreme Outdoor Documentary",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-006.webp",
+      "prompt": "Patagonia Rugged Wilderness & Extreme Outdoor Documentary。原生态户外；粗粝纪实自然；极端冒险纪实；真实质感；高山荒野与风雪冲锋衣。"
+    },
+    {
+      "id": "FI-007",
+      "name": "Gucci 1970s Vintage Glamour Cinematic Editorial Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-007.webp",
+      "prompt": "Gucci 1970s Vintage Glamour Cinematic Editorial Photography。复古华丽；70年代胶片；浓郁色彩；戏剧感时尚大片；复古提花与奢华配饰。"
+    },
+    {
+      "id": "FI-008",
+      "name": "Jacquemus French Riviera Sun-Drenched Minimal Fashion Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-008.webp",
+      "prompt": "Jacquemus French Riviera Sun-Drenched Minimal Fashion Photography。南法地中海；阳光；大块纯色；极简几何构图；超现实式时装大片；纯白建筑与蔚蓝海岸。"
+    },
+    {
+      "id": "FI-009",
+      "name": "National Geographic Epic Wildlife & Cultural Documentary Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-009.webp",
+      "prompt": "National Geographic Epic Wildlife & Cultural Documentary Photography。史诗级自然摄影；人文纪实；丰富光影细节；真实生命力；野生动物与磅礴地貌。"
+    },
+    {
+      "id": "FI-010",
+      "name": "Vogue Haute Couture Dramatic Lighting Fashion Editorial",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-010.webp",
+      "prompt": "Vogue Haute Couture Dramatic Lighting Fashion Editorial。高级时装大片；电影感光影；戏剧性布光；优雅或前卫姿态；高定礼服与艺术质感。"
+    },
+    {
+      "id": "FI-011",
+      "name": "Kinfolk Slow-Living Low-Saturation Natural Light Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-011.webp",
+      "prompt": "Kinfolk Slow-Living Low-Saturation Natural Light Photography。低饱和；自然光影；留白；亚麻与陶器；慢节奏生活；晨光与谷物早餐。"
+    },
+    {
+      "id": "FI-012",
+      "name": "Wallpaper* Architectural Modernist Geometric Interior Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-012.webp",
+      "prompt": "Wallpaper* Architectural Modernist Geometric Interior Photography。设计感；现代建筑；几何构图；冷静克制的空间摄影；悬挑结构与极简家具。"
+    },
+    {
+      "id": "FI-013",
+      "name": "i-D Raw Youth Subculture Direct-Flash Portrait Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-013.webp",
+      "prompt": "i-D Raw Youth Subculture Direct-Flash Portrait Photography。青年街头亚文化；直闪风格；特写大头照；不羁态度；鬼马表情与生猛颗粒感。"
+    },
+    {
+      "id": "FI-014",
+      "name": "Dazed Avant-Garde Experimental Fashion & Expressive Mood Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-014.webp",
+      "prompt": "Dazed Avant-Garde Experimental Fashion & Expressive Mood Photography。先锋实验时尚；非传统造型；打破常规；强烈情绪与态度；夸张服饰与实验发型。"
+    },
+    {
+      "id": "FI-015",
+      "name": "The Gentlewoman Restrained Monochrome Modern Female Portrait",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-015.webp",
+      "prompt": "The Gentlewoman Restrained Monochrome Modern Female Portrait。克制；现代女性；黑白肖像；沉静高级；自然真实；深色针织与从容凝视。"
+    },
+    {
+      "id": "FI-016",
+      "name": "Annie Leibovitz Cinematic Staged Narrative Portrait Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-016.webp",
+      "prompt": "Annie Leibovitz Cinematic Staged Narrative Portrait Photography。电影感人物肖像；精妙布景场景；丰富故事感；戏剧光；复古书房与深邃油画质感。"
+    },
+    {
+      "id": "FI-017",
+      "name": "Richard Avedon Stark White Studio Pure Black-and-White Portrait",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-017.webp",
+      "prompt": "Richard Avedon Stark White Studio Pure Black-and-White Portrait。极白背景纯粹黑白肖像；直接镜头凝视；细腻皮肤细节；极简影棚与纯净灵魂特写。"
+    },
+    {
+      "id": "FI-018",
+      "name": "Peter Lindbergh Natural Raw Windblown Monochrome Fashion Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-018.webp",
+      "prompt": "Peter Lindbergh Natural Raw Windblown Monochrome Fashion Photography。黑白时尚；自然素颜；被风吹乱的头发；真实人文感；未施粉黛的纯粹力量。"
+    },
+    {
+      "id": "FI-019",
+      "name": "Helmut Newton High-Contrast Bold Monochrome Seductive Noir",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-019.webp",
+      "prompt": "Helmut Newton High-Contrast Bold Monochrome Seductive Noir。黑白高反差；强烈光影；冷艳高级性感；大理石暗夜与锐利剪影。"
+    },
+    {
+      "id": "FI-020",
+      "name": "Steve McCurry Saturated Soulful Humanist Cultural Portrait",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-020.webp",
+      "prompt": "Steve McCurry Saturated Soulful Humanist Cultural Portrait。浓郁色彩；标志性眼神光；强烈人文关怀；复杂文化细节；国家地理大师；异域头巾与清澈眼眸。"
+    },
+    {
+      "id": "FI-021",
+      "name": "Martin Parr Saturated Direct-Flash Satirical Everyday Documentary",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-021.webp",
+      "prompt": "Martin Parr Saturated Direct-Flash Satirical Everyday Documentary。高饱和；直闪；讽刺幽默的日常；英伦海滩与度假日光。"
+    },
+    {
+      "id": "FI-022",
+      "name": "Gregory Crewdson Twilight Cinematic Mystery Staged Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-022.webp",
+      "prompt": "Gregory Crewdson Twilight Cinematic Mystery Staged Photography。电影级布光；静止戏剧；神秘悬疑感；暮色小镇独栋房屋与幽暗街道。"
+    },
+    {
+      "id": "FI-023",
+      "name": "Saul Leiter Poetic Rainy Street & Window Reflection Color Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-023.webp",
+      "prompt": "Saul Leiter Poetic Rainy Street & Window Reflection Color Photography。诗意街头；雨天窗户倒影；朦胧色彩；咖啡馆水汽与雨伞街景。"
+    },
+    {
+      "id": "FI-024",
+      "name": "Slim Aarons Luxurious Poolside Resort & Villa High-Society Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-024.webp",
+      "prompt": "Slim Aarons Luxurious Poolside Resort & Villa High-Society Photography。奢华度假；阳光泳池别墅与派对；条纹遮阳伞与复古名流松弛感。"
+    },
+    {
+      "id": "FI-025",
+      "name": "Daido Moriyama Grainy High-Contrast Noir Street Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-025.webp",
+      "prompt": "Daido Moriyama Grainy High-Contrast Noir Street Photography。粗颗粒；高反差黑白；街头夜景；失焦与晃动感；晃动光斑与都市游荡。"
+    },
+    {
+      "id": "FI-026",
+      "name": "Andreas Gursky Monumental Scale Repetitive Geometric Architecture Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-026.webp",
+      "prompt": "Andreas Gursky Monumental Scale Repetitive Geometric Architecture Photography。宏大场景；上帝视角；重复几何结构；密集细节；超大画幅；巨型中庭商场与秩序网格。"
+    },
+    {
+      "id": "FI-027",
+      "name": "Wes Anderson Pastel Symmetry & Retro Whimsical Cinematic Aesthetic",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-027.webp",
+      "prompt": "Wes Anderson Pastel Symmetry & Retro Whimsical Cinematic Aesthetic。《布达佩斯大饭店》马卡龙色；绝对对称；复古精致；童话感；粉青撞色与居中构图。"
+    },
+    {
+      "id": "FI-028",
+      "name": "Wong Kar-wai Hong Kong Retro Neon Glow Atmospheric Cinematic Mood",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-028.webp",
+      "prompt": "Wong Kar-wai Hong Kong Retro Neon Glow Atmospheric Cinematic Mood。《花样年华》《重庆森林》《堕落天使》浓郁复古港风；霓虹光晕；抽帧模糊；暧昧情绪；雨夜招牌与香烟薄雾。"
+    },
+    {
+      "id": "FI-029",
+      "name": "Stanley Kubrick One-Point Perspective Cold Symmetrical Sci-Fi Cinema",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-029.webp",
+      "prompt": "Stanley Kubrick One-Point Perspective Cold Symmetrical Sci-Fi Cinema。《闪灵》《2001太空漫游》一点透视；冷峻对称；极致理性；超现实科幻；大理石长廊与中心人物。"
+    },
+    {
+      "id": "FI-030",
+      "name": "David Fincher Desaturated Moody Green-Toned Precision Thriller Cinema",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-030.webp",
+      "prompt": "David Fincher Desaturated Moody Green-Toned Precision Thriller Cinema。《搏击俱乐部》《七宗罪》《消失的爱人》低饱和暗调；冷绿与黄绿调；精密构图；压抑悬疑；雨夜百叶窗与夜幕写字楼。"
+    },
+    {
+      "id": "FI-031",
+      "name": "Taobao E-Commerce Product Commercial Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-031.webp",
+      "prompt": "Taobao E-Commerce Product Commercial Photography。"
+    },
+    {
+      "id": "FI-032",
+      "name": "iPhone 17 Candid Everyday Snapshot Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-032.webp",
+      "prompt": "iPhone 17 Candid Everyday Snapshot Photography。真实手机抓拍；iPhone原相机直出质感；自然环境光与现场氛围；生动生活瞬间；细腻真实肤质与高动态范围；轻微自然景深；无过度修饰真实感。"
+    },
+    {
+      "id": "FI-033",
+      "name": "Security Camera CCTV & Doorbell Surveillance Footage Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-033.webp",
+      "prompt": "Security Camera CCTV & Doorbell Surveillance Footage Photography。真实监控录像截屏；广角鱼眼镜头边缘畸变；智能门铃与CCTV安防监控俯仰视角；夜视红外或弱光环境自然噪点与数字视频监控质感；画面角落包含白色监控时间戳、REC录制红点或监控UI；真实突发事件抓拍感；冷峻纪实氛围；生动真实细节。"
+    },
+    {
+      "id": "FI-034",
+      "name": "DJI Drone Cinematic Aerial Landscape Photography",
+      "group": "FI 写实摄影与视觉大片 / Realistic, Photography & Cinematic Styles",
+      "image": "images/individual/FI/FI-034.webp",
+      "prompt": "DJI Drone Cinematic Aerial Landscape Photography。大疆无人机高空俯拍与鸟瞰全景；壮阔开阔的宏大空间构图；极高解析度与通透纯净画质；自然阳光与清澈丰富光影；山川湖海、曲折公路与地貌肌理细节丰富；微缩人物或车队群像的动感与秩序美感；电影级壮丽航拍视角。"
     }
   ],
   "layout": [
-    {
-      "id": "SC-001",
-      "name": "上文下图社媒卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-001.webp",
-      "prompt": "小红书社媒卡。排版采用上文下图结构：上方集中放置主题文字和简短补充文案，下方放置完整主图或场景图。上下内容保持清晰的阅读顺序，图文关系自然，整体构图简洁。"
-    },
-    {
-      "id": "SC-002",
-      "name": "文案主导底部辅助图卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-002.webp",
-      "prompt": "小红书社媒卡。排版：视觉主体是文字，底部简单图案起辅助作用，图文之间有较大空间。纯色背景，较多留白空间，构图简单。"
-    },
-    {
-      "id": "SC-003",
-      "name": "上下双格图文卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-003.webp",
-      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作。上下带框两宫格，每一格都是上面一行字，下面配图，图文无明显分界，纯色背景，较多留白空间，角色高度概括，构图简单。"
-    },
-    {
-      "id": "SC-004",
-      "name": "上下双格图文分区卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-004.webp",
-      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作。上下带框两宫格，每一格都有一个图区和一个文字区，文字区可以在图的上方、左侧或右侧，文字区显示简单文案不做过多扩写，纯色背景，较多留白空间，角色高度概括，构图简单。"
-    },
-    {
-      "id": "SC-005",
-      "name": "气泡文字思考IP卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-005.webp",
-      "prompt": "小红书社媒卡。排版：无独立标题，视觉重点是使用主题的气泡文字，左下或右下放置一个思考状 IP 形象，构图简单，大面积留白。"
-    },
-    {
-      "id": "SC-006",
-      "name": "三层标题辅助图卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-006.webp",
-      "prompt": "小红书社媒卡。排版分为三层：上层放置主标题，中层放置一张尺寸较小、起辅助作用的简单图形，下层放置副标题。使用纯色背景，保留较多留白空间，整体构图简单。"
-    },
-    {
-      "id": "SC-007",
-      "name": "引号关键词文字卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-007.webp",
-      "prompt": "小红书文字型社媒卡。排版：左上放置一个醒目的双引号，中间呈现主题文案并将关键词重点化，右下放置一条下划线；句末可以添加与文字大小适配的 emoji。保持文字主导的简洁构图。"
-    },
-    {
-      "id": "SC-008",
-      "name": "图上文下留白卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-008.webp",
-      "prompt": "小红书社媒卡。排版采用图上文下结构，上方是高度概括的角色或场景图，下方是主题文案；图文之间不设置明显界线，让视觉自然衔接。使用纯色背景，保留较多留白空间，整体构图简单。"
-    },
-    {
-      "id": "SC-009",
-      "name": "居中文字右下辅助图卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-009.webp",
-      "prompt": "小红书文字型社媒卡。排版：主题文字作为视觉主体，居中显示；右下角放置一个简单的小图作为辅助，不抢夺文字的视觉重点。整体构图简洁。"
-    },
-    {
-      "id": "SC-010",
-      "name": "上下双格标题列表卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-010.webp",
-      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作上下带框的两宫格。每一格包含一行标题、约两三行的简短 list 文字和一张简单配图；文字保持简洁，不做过多扩写，图文之间不设置明显分界。使用纯色背景，保留较多留白空间，角色高度概括，整体构图简单。"
-    },
-    {
-      "id": "SC-011",
-      "name": "中心主图多场景信息卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-011.webp",
-      "prompt": "小红书社媒卡。排版：设置一个主标题，画面中央放置一个主图，周围安排 3–5 个与主体形象一致的简单信息图，并添加 2–3 个对主体的简短标注。使用纯色背景，保留较多留白空间，角色高度概括，整体构图简单。"
-    },
-    {
-      "id": "SC-012",
-      "name": "中心标题上下图标卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-012.webp",
-      "prompt": "小红书社媒卡。排版：标题垂直居中显示，标题上方整齐安排两行图标，标题下方也整齐安排两行图标，形成围绕中心标题的上下对称结构。保持图标排列清晰、构图简单。"
-    },
-    {
-      "id": "SC-014",
-      "name": "留白驱动主视觉信息卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-014.webp",
-      "prompt": "小红书社媒卡。整体保留大面积留白。顶部设置 1–2 行醒目的短标题，与主体区域形成清晰层级；中下部设置一个占据主要面积的大型主视觉，主视觉可居中、偏左或偏右，不固定位置，并通过主体自身的轮廓、姿态和占位关系自然形成若干留白区域。将 4–6 个尺寸较小的信息单元穿插在这些留白区域中，每个单元由一个小视觉元素与极短文字组成，位置服从主视觉留下的空间，不平均环绕主体，不形成规则左右分栏。小信息单元应明显小于主视觉并贴合主体轮廓的空隙，可上下错落、疏密变化，不能使用统一卡片框、规则宫格、表格或明显分割线。底部可保留一句很短的总结文字作为收尾。整体强调主视觉优先、留白驱动、信息穿插，画面完整而非模块拼接。"
-    },
-    {
-      "id": "SC-015",
-      "name": "上下双区递进短句卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-015.webp",
-      "prompt": "小红书社媒卡。整体采用上下两段式结构，将画面分成两个面积接近的独立内容区域，中间保留清晰间距或细分隔关系。两个区域使用统一的视觉语言和相近的内部结构，形成对照、前后、转折或递进关系。每个区域设置一个醒目的核心短句作为第一视觉层级，并安排一个尺寸明显较大的单一主视觉，与核心文字形成左右或斜向的非对称平衡；主视觉位置可根据留白和整体重心调整。核心文字与主视觉之外的剩余留白中，放置 2–4 行简短补充文字，不形成独立卡片或规则列表。上下两个区域保持相似的视觉重量和阅读节奏，但不要求完全镜像复制，可通过标题位置、主视觉方向或留白分布产生轻微变化；第二个区域可加入很短的过渡词、转折词或关系提示。整体强调“上下双区＋大短句＋单一主视觉＋少量补充说明”，避免复杂信息图、密集文字、规则宫格和过多装饰，保持大面积留白、层级清楚、手机端快速阅读。"
-    },
-    {
-      "id": "SC-016",
-      "name": "极简大字小图点缀卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-016.webp",
-      "prompt": "小红书社媒卡。整体采用极简的大留白结构，以一组大字号短文案作为绝对视觉主体。主文案放置在画面上半部或中上部，占据主要横向宽度，可使用 2–3 行自然换行；文字整体偏左排列，但不紧贴边缘，形成稳定的大块文字区域。主文案字号明显大于其他元素，行距相对紧凑，个别关键词可通过颜色、字重、底纹或轻微标记进行局部强调，但不要让多个词同时抢夺注意力。主文案下方保留较大的空白距离，在中央或略偏一侧放置一个尺寸很小的视觉点缀，作为第二视觉停顿，不承担主要信息。画面四角可以加入极少量微型辅助信息，例如日期、页码、符号或装饰点，字号和视觉重量都非常低。整体不设置卡片框、分栏、信息列表或复杂图文组合，背景保持简洁，强调大文字、少元素、大留白、弱装饰，形成轻盈安静、适合快速阅读的社媒封面感。"
-    },
-    {
-      "id": "SC-017",
-      "name": "自由标注留白信息卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-017.webp",
-      "prompt": "小红书社媒卡。排版：设置一个主标题，标签文字以自由、自然的方式分布在画面中，对画面里的角色、物件或场景元素做出简短注解，让文字参与整体构图。保留大面积留白，角色高度概括，减少装饰和复杂分区，保持构图简洁。"
-    },
-    {
-      "id": "SC-018",
-      "name": "中心主视觉环绕信息卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-018.webp",
-      "prompt": "小红书社媒卡。排版采用中心主视觉环绕式结构：顶部设置两级短标题，其中主标题醒目。画面中央放置一个占比最大的主体人物或物体，作为绝对视觉中心；主体四周分散安排 3–6 个尺寸较小的独立插图，每个小图旁仅配一个极短标签或事项名称。小图采用自由、不规则的环绕分布，左右和下方错落排布，保持视觉平衡而非整齐网格。背景保留大面积留白，主图、小图、文字之间保持明显间距，形成“一大主体＋多个小信息点”的层级关系。"
-    },
-    {
-      "id": "SC-019",
-      "name": "中央人物细线标注卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-019.webp",
-      "prompt": "小红书社媒卡。排版采用“顶部标题＋中央大人物＋左右零散标签”的三级结构。画面顶部放置一句醒目的短标题，字号最大，居中或略偏左。画面中央放置一个完整人物作为绝对视觉主体，人物占画面高度约 60%–75%，从中上部延伸到底部，保持完整轮廓。人物左右两侧分散安排 3–5 个极短标签，每个标签仅一行或短词组，并用简短细线、斜线或引导线指向人物附近对应位置。标签上下错落、自由分布，左右保持视觉平衡，不做成规则列表。人物与文字之间保留充足间距，不遮挡人物主体。背景大面积留白，不增加复杂图块、卡片框、表格或多余装饰，确保手机端一眼可读。"
-    },
-    {
-      "id": "SC-020",
-      "name": "一大一组非对称信息卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-020.webp",
-      "prompt": "小红书社媒卡。整体采用“一大一组”的非对称结构。顶部设置 1–2 行醒目的短标题，形成独立标题区域，并与下方主体保持明显间距。中部设置一个占据主要面积的大型主视觉，整体偏向画面一侧；在相对另一侧集中安排 4–6 个尺寸明显更小的信息单元，形成连续、紧凑的次级信息组。主视觉可以位于左侧或右侧，信息组随之镜像调整，不固定具体方向。小信息单元不环绕主视觉四周，也不分散到画面两侧，可上下错落、两列穿插或疏密变化；每个单元由一个小视觉元素与极短文字组成。主视觉区域约占中部内容面积的 55%–70%，信息组约占 25%–40%，两者通过留白自然分隔，不使用分栏线、统一卡片框、表格或规则宫格。底部可保留一行很短的总结文字。整体强调“一个大视觉块＋一个集中小信息簇”，版面非对称但稳定，避免中心辐射、四周环绕、平均分布或满画面散点排版。"
-    },
-    {
-      "id": "SC-021",
-      "name": "自适应双拼照片转译社媒卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-021.webp",
-      "prompt": "小红书社媒卡。排版：自适应双拼照片艺术转译型 (SC-021)。支持纯文本主题直出（由生图模型一体化生成）与上传照片垫图转绘。\n拼接时严禁修改或拉伸原图比例，两区面积严格 1:1 等大，无多余外框；由生图模型自主完成“真实摄影呈现 × 艺术风格转译”的前后虚实跨媒介对话：\n\n【画幅比例驱动切分原则（严禁死板切分，完全由目标比例决定）】：\n1. 竖版画幅（如 3:4、9:16、1:2 等纵向构图）：默认采用【上下 1:1 纵向堆叠双拼】。上方摄影区（占 50%），下方艺术转译区（占 50%），顺应手机端自上而下的视觉阅读动势与故事自然向下延展；\n2. 横版画幅（如 16:9、4:3、5:2、21:9、2.35:1 等横向构图）：默认采用【左右 1:1 横向并排双拼】。左侧摄影区（占 50%），右侧艺术转译区（占 50%），顺应横向视觉扫描序列，两侧均呈现方正/垂直的独立艺术杂志跨页质感；\n3. 方版画幅（1:1）与自由画幅：根据主体姿态动势与延伸线走向自适应（垂直动势采用上下拼，水平延展采用左右拼），亦可采用对角斜切或完全服从用户显式指定的分割方向。\n\n【真实摄影区（竖版上方 / 横版左侧）】：\n由生图模型根据主题生成超写实、高质感的单反摄影真实照片（若用户上传了参考图则以原图为准）。严格保持原始宽高比例与构图完整性，严禁拉伸变形。保持摄影真实景深、自然环境光线、真实皮肤/毛发质感与抓拍现场氛围，不做任何插画化处理，作为风格转译前的真实摄影基准。\n\n【艺术转译区（竖版下方 / 横版右侧）—— 彻底去写实、大面积留白与专属构图类型】：\n1. 彻底去写实化与画风从零重绘（坚决杜绝照片套滤镜）：\n艺术转译区必须与摄影区形成极具视觉冲击力的跨媒介反差！坚决不要在原照片的写实五官与体积光影上套滤镜。必须“只提取摄影区人物/主体的标志性特征、姿态神态与大轮廓”，在画风上完全按所选风格从零重绘为纯粹的 2D 手绘/艺术插画，让所选风格的笔触、线条、专属配色与质感辨识度最大化释放。\n\n2. 坚决彻底剔除原片环境杂质（四周留白是第一原则，严禁照抄全景背景）：\n严禁把摄影区的杂乱背景机械复制到转译区！转译侧画面四周边缘必须保留充足、干净的 40%–80% 负空间/呼吸留白底色（暖象牙白、米白棉麻纸纹），主体与文字向内部收拢，绝不贴边、绝不爆框。\n\n3. 七大核心转译类型体系（每次输出单义明确，并在文末附带编号清单供用户点选）：\nAI 在生成提示词时，若用户未指定类型，可默认选择最契合画面主题的 1 种类型（或按顺序轮替），并严格输出单义执行指令；同时必须在输出末尾附带 7 种可选类型清单（含编号），方便用户随时切换：\n- 【类型 01 · 视线锚点跨界续绘型 (Visual Anchor Continuation)】：两半部读作同一个连续发生的场景！在摄影中锁定一个具体物理锚点（水流、车道、光影、发丝、手势、枝条），该结构直接跨越接缝边界流淌/生长进入暖象牙纸手绘区域，在下方衍生出趣味绘本小故事，配 0–3 个极简黑线故事小人交互；\n- 【类型 02 · 撕纸裂变第二世界型 (Torn-Paper Second World)】：接缝处采用不规则手工物理撕纸毛边。现实世界穿透撕纸后进入“第二世界”，物理规则发生超现实突变（水变成可拉扯布匹、光变成被托起实体、影子变成可攀爬阶梯），暖象牙纸大面积留白，搭配克制照片碎片拼贴与极简小人；\n- 【类型 03 · 越界破框型 (Boundary Break / Out-of-Bounds)】：在纯白/暖纸底色中设置单枚低饱和几何色块/容器，主体大部分在色块内，但关键部位（头部、手臂、枝叶）自然突破色块边缘伸出，形成空间穿透感；\n- 【类型 04 · 微缩浮岛型 (Miniature Diorama / Floating Island)】：主体大幅微缩为占画面 10%–25% 的精致纸面小景，由一抹清淡色带或微型基座承托，四周呈现大片静谧空旷留白；\n- 【类型 05 · 记忆图谱平铺型 (Memory Knolling / Fragment Collage)】：居中放置手绘主体，留白中错落平铺 3–6 枚提取自原图的记忆特征小插画/贴纸（带 NO. 编号），间距透光，图鉴手账感；\n- 【类型 06 · 经典悬浮落地型 (Suspended / Grounded Hero)】：主体尺度适中（占 40%–55%），居中或微偏心站立，底部仅用一条极简手绘地面摩擦线提示空间；\n- 【类型 07 · 正负形咬合型 (Gestalt Positive-Negative Interlock)】：主体高度提炼为几何剪影，与背景正负形相互转换咬合。\n\n4. 编辑式微排版（文字优雅嵌入负空间）：\n在空白负空间中巧妙排布 1–2 组精致微排版（手绘艺术标题、4–8 词轻松手写英文随笔、编号标签），字迹纤细克制。\n\n【交互点选输出规范】：\n每当使用或输出 SC-021 提示词时，在提示词文本末尾，必须固定附带 7 大可选类型索引清单（如：`当前已采用【类型 01 · 视线锚点跨界续绘型】，若需切换可直接回复编号：01 跨界续绘 / 02 撕纸第二世界 / 03 越界破框 / 04 微缩浮岛 / 05 记忆图谱 / 06 悬浮落地 / 07 正负形咬合`），赋予用户随时点选换装的自由。"
-    },
-    {
-      "id": "SC-022",
-      "name": "姓名四款签名设计展示卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-022.webp",
-      "prompt": "【中文姓名】：{例如：唐伯虎}\n【姓名拼音】：{例如：TANG BOHU}\n【顶部背景色】：{例如：深钴蓝}\n【画幅比例】：9:16\n\n将输入的【中文姓名】制作成一张“姓名 → 四种签名方案”的竖版设计稿。\n\n## 一、整体排版\n\n画面比例为 9:16。\n\n上方约占画面 40%，用于展示原始姓名。\n\n下方约占画面 60%，用于展示同一个姓名的四种不同签名方案。\n\n---\n\n## 二、顶部姓名区\n\n顶部使用【顶部背景色】。\n\n顶部中央放置小字：\n\nNAME TO SIGNATURE\n\n画面中部展示【中文姓名】。\n\n姓名必须使用普通印刷字体，不使用手写、连笔、签名字体或艺术变形，用于明确表示原始输入姓名。\n\n中文姓名下方显示：\n\n【姓名拼音】\n\n姓名拼音使用大写英文字母。\n\n顶部区域不添加其他文案、Logo、编号或图形。\n\n---\n\n## 三、底部签名区\n\n底部划分为 2×2 四个区域。\n\n使用细虚线进行横向和纵向分隔，不需要外边框。\n\n四格分别展示同一个【中文姓名】的四种签名设计：\n\n左上：飘逸\n右上：锋势\n左下：回环\n右下：极简\n\n每格只包含：\n\n1. 一个大尺寸签名\n2. 下方一个小字号风格名称\n\n四个签名都必须来源于同一个【中文姓名】，但不能只是把完整姓名换四种相似写法。\n\n允许对姓名进行：\n\n省笔、合笔、连笔、共享笔画、压缩、拉长、缩写、拆解、重组、符号化。\n\n不要求每一个中文字都完整可辨。\n\n重点是保留姓名的部分结构特征，同时形成四种明显不同的签名骨架。\n\n---\n\n## 四、四种签名笔势\n\n### 1. 飘逸\n\n整体横向展开。\n\n姓名高度压缩，多个字之间可以连续连写、共享笔画。\n\n以连续曲线为主，笔势流畅。\n\n可以使用一至两条跨度较大的长线，将整个签名串联起来。\n\n允许出现较长的横向拖尾。\n\n整体结构强调：\n\n长线、曲线、连续、舒展、流动。\n\n减少过多尖角和短促折线。\n\n---\n\n### 2. 锋势\n\n整体具有明显向右推进的趋势。\n\n大量使用：\n\n斜线、尖角、高竖笔、快速切线、短促折笔。\n\n姓名可以高度压缩，只保留主要骨架。\n\n整体允许明显右倾。\n\n主笔可以形成较强的上挑、下切、斜向穿插关系。\n\n减少大面积圆形和柔软回环。\n\n整体结构强调：\n\n斜向、锐角、切线、速度、力量。\n\n---\n\n### 3. 回环\n\n以一个或多个大型回环结构作为签名主体。\n\n可以使用：\n\n开放圆环、椭圆曲线、大型 S 曲线、连续回转线、包围结构。\n\n将姓名压缩后的主要笔画嵌入回环内部，或让姓名笔画穿过回环。\n\n最后一笔可以突破主体，形成较长收尾。\n\n回环不能过于规则，应保留自然手写产生的不对称。\n\n整体结构强调：\n\n回旋、包围、穿插、连续曲线、大尺度手势。\n\n---\n\n### 4. 极简\n\n不完整书写整个姓名。\n\n从【中文姓名】中提取约 4–6 个最有识别价值的主要笔画，例如：\n\n长横、主竖、折笔、斜线、撇捺、点笔。\n\n重新组合成一个简化的个人签名标记。\n\n允许大幅度省略原姓名结构。\n\n整体笔画数量明显少于其他三款。\n\n避免添加与姓名无关的装饰图形。\n\n整体结构强调：\n\n少笔画、大留白、强骨架、符号化。\n\n---\n\n## 五、四款差异控制\n\n四种方案必须在以下方面产生明显区别：\n\n- 笔画数量\n- 横向或斜向趋势\n- 曲线与直线比例\n- 是否存在大型回环\n- 是否完整保留姓名\n- 重心位置\n- 连笔方式\n- 收尾方向\n- 整体轮廓\n\n四款不能只是修改同一个签名的尾笔。\n\n应形成四种不同结构：\n\n飘逸：长曲线 + 连续连写\n锋势：斜线 + 尖角 + 强方向性\n回环：大型曲线 + 包围结构\n极简：少量核心笔画 + 高度符号化\n\n最终只需要保留姓名、拼音、四个签名和四个风格名称，不添加其他内容。"
-    },
-    {
-      "id": "SC-023",
-      "name": "代表性情景概括知识封面卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-023.webp",
-      "prompt": "采用竖版4:5知识封面构图，参考图片中的大标题突出、人物紧凑环绕、情景自然穿插的布局方式。\n顶部约三分之一为醒目的主标题，分成两到三行，重点数字和关键词明显放大，局部搭配手绘色块突出视觉冲击力。整张图只保留主标题，不出现其他说明文字。\n标题下方安排4到6个最具代表性的情景，以角色为主要视觉元素，减少大面积环境和复杂背景。角色采用半身、近景与局部全身交错组合，最大的核心角色放在中央偏下位置，其他角色围绕分布在左右两侧和底部。角色之间有自然的前后遮挡、大小对比和动作呼应，形成紧凑但不拥挤的群像构图。\n每个情景表达不同的信息点，通过角色夸张的表情、肢体动作和少量关键道具快速传递含义。不使用分镜框，不做规则切块，不刻意完整展示每个场景，允许角色和道具适当交叠、局部超出画面，增强漫画封面的整体感。\n画面采用统一的背景，标题区保持干净纯粹，情景之间通过自然留白和少量手绘动态线衔接，不做明显分割。整体呈现上方标题强烈醒目、下方人物集中丰富、视觉重心明确的布局效果。"
-    },
-    {
-      "id": "SC-024",
-      "name": "图下文上留白卡",
-      "group": "社媒卡",
-      "image": "images/layouts/social-cards/SC-024.webp",
-      "prompt": "小红书社媒卡。排版采用图下文上结构，下方是高度概括的角色或场景图，上方是主题文案；整张图不设置大标题，图文之间不设置明显界线，让视觉自然衔接。使用纯色背景，保留较多留白空间，整体构图简单。"
-    },
-    {
-      "id": "IG-001",
-      "name": "标题金字塔图标信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-001.webp",
-      "prompt": "小红书信息图。排版：顶部设置明确标题，主体采用层级递进的金字塔示意图，每一层包含多个带标签的图标，使用分层结构清晰表达信息关系。"
-    },
-    {
-      "id": "IG-002",
-      "name": "中心主图标注信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-002.webp",
-      "prompt": "小红书信息图。排版：主图放在画面中央，周围环绕多个带线标签的注释，连接线分别指向主图的具体部位，对主体结构或细节进行清晰标注说明。"
-    },
-    {
-      "id": "IG-003",
-      "name": "多行左文右图信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-003.webp",
-      "prompt": "小红书信息图。高泛用性多层/多行图文并列结构。排版：顶部设置醒目的主标题区（可包含主标题、副标题、日期/标签或分类标语）；主体由多行（通常 3–5 层）垂直等距对齐的横向模块组成，每一行采用左侧文字信息（时间点/小标题/标签与要点说明）、右侧对应配图（场景插图/实物/产品图）的并列结构，各行保持整齐统一的水平对齐；底部可配置总结提示、实用贴士备忘或简短结语。该版式通用于各类横向分层条目展示，包括但不限于每日行程路线安排、图鉴速览、分类清单、步骤流程、多维度对照或对比等场景。"
-    },
-    {
-      "id": "IG-004",
-      "name": "双列多行对比信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-004.webp",
-      "prompt": "小红书信息图。排版：顶部设置主标题，主体分为左右两列进行对比，每列内部包含多行对应内容；保持两列结构清晰、行项相互对齐，突出不同对象之间的逐项比较关系。"
-    },
-    {
-      "id": "IG-005",
-      "name": "大主视觉下方图鉴信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-005.webp",
-      "prompt": "小红书信息图。整体采用“顶部超大标题＋中部大型结构主视觉＋下部图鉴式分类单元”的纵向结构。顶部设置一行醒目的大标题，字号明显大于其他文字，横向展开，占据独立标题区，并与下方内容保持清晰间距。画面中部放置一个尺寸很大的完整主视觉，占据画面主要宽度，作为整张卡片的核心；主视觉内部可根据自身结构划分若干区域，并直接嵌入简短标签，使文字与主视觉形成一体化标注，不拆成多个独立卡片。画面下部排列多个尺寸较小的独立视觉单元，采用规则但不过分拥挤的多列布局，每个单元由“小视觉＋下方短标签”组成，尺寸尽量统一，横向和纵向间距稳定，形成图鉴、目录或分类展示的扫描节奏。小单元数量可以较多，但必须明显小于中部主视觉，不使用复杂卡片框，依靠留白、对齐和重复结构建立秩序。整体阅读顺序为顶部标题→中部整体结构→下部细分类单元，避免左右分栏、复杂装饰和不规则拼贴。"
-    },
-    {
-      "id": "IG-006",
-      "name": "多层标题图标对比信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-006.webp",
-      "prompt": "小红书信息图。排版：设置一个主标题，主体由多个层级组成，每一层左侧放置该层标题，右侧整齐排列多个带文字标签的图标，用于呈现不同层级之间的对比关系。使用纯色背景，保留较多留白空间，整体构图简单。"
-    },
-    {
-      "id": "IG-007",
-      "name": "粗体标题标签小图卡",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-007.webp",
-      "prompt": "小红书信息图。排版：粗体标题，多行带标签小图，底部一行字，纯色背景，无框，较多留白空间。"
-    },
-    {
-      "id": "IG-008",
-      "name": "多路径流程步骤图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-008.webp",
-      "prompt": "小红书信息图。排版：设置一个主标题，主体采用流程步骤图结构，步骤路径可以是横向、纵向、S 形或其他清晰的路径式布局。每一步只包含一个小图和一句简短说明，步骤之间通过方向、顺序或适度引导关系连接。保留大面积留白，避免复杂装饰和过多文字。"
-    },
-    {
-      "id": "IG-009",
-      "name": "时间轴节点信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-009.webp",
-      "prompt": "小红书信息图。排版：设置一个主标题，主体采用时间轴型结构，用一条清晰的主轴串联多个节点。时间轴可以横向或纵向展开，每个节点包含一个小图、一个时间信息和一句简短说明。保持节点顺序清楚、层级明确，并保留大面积留白，避免复杂装饰和过多文字。"
-    },
-    {
-      "id": "IG-010",
-      "name": "阶段等级进阶信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-010.webp",
-      "prompt": "小红书信息图。排版：阶段进阶型，重点展示由低到高的等级变化和阶段提升，不以时间先后为组织依据。顶部设置简短醒目的主标题，主体可采用阶梯、上升箭头或清晰的层级结构，使进阶方向一目了然。各阶段配简洁小图、等级名称和简短说明，层级关系清楚，文字从简。保留大面积留白和舒适的阶段间距，构图简洁。"
-    },
-    {
-      "id": "IG-011",
-      "name": "前后变化对比信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-011.webp",
-      "prompt": "小红书信息图。排版：Before / After 型，前后变化是绝对视觉重点。将画面组织为前后两个主要区域，可以左右排列，也可以上下排列；两部分之间只放箭头、日期或极少量说明，用来表达变化方向。Before 与 After 各自呈现完整、可直接比较的主视觉，标签和文字保持简洁。保留大面积留白，避免复杂装饰和过多辅助信息。"
-    },
-    {
-      "id": "IG-012",
-      "name": "分层结构型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-012.webp",
-      "prompt": "小红书信息图。排版：分层结构型，围绕天然存在的层级关系组织信息，可以表现为上中下、内中外、表层深层或由基础到核心的多层结构。设置清晰的主标题，主体通过层层嵌套、上下分层或由下至上的结构展示不同层级；每一层配简洁名称、短句或小图，保持层级顺序和阅读关系明确。保留大面积留白，避免复杂装饰、过密文字和无关模块。"
-    },
-    {
-      "id": "IG-013",
-      "name": "漏斗转化型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-013.webp",
-      "prompt": "小红书信息图。排版：漏斗型，上宽下窄，通过逐层收窄的结构展示从广泛进入、筛选、转化、淘汰到聚焦沉淀的过程。设置清晰的主标题，漏斗各层配简洁的阶段名称、短句或小图，突出人数、对象或范围逐步减少而重点逐步集中的关系。层级顺序应清楚，保留大面积留白，避免复杂装饰和过多文字。"
-    },
-    {
-      "id": "IG-014",
-      "name": "四象限矩阵信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-014.webp",
-      "prompt": "小红书信息图。排版：矩阵型，以两条相互垂直的轴将内容划分为四个象限，优先采用清晰易读的 2×2 结构。设置一个主标题，并明确标注横轴、纵轴及其两端含义；每个象限放置一个主题单元，可包含简短标题、小图和少量说明。四个区域保持对齐、间距均衡和比较关系明确，保留大面积留白，避免复杂装饰和过多文字。"
-    },
-    {
-      "id": "IG-015",
-      "name": "坐标散点型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-015.webp",
-      "prompt": "小红书信息图。排版：坐标散点型，在一个清晰的坐标空间中散布多个不同对象，通过它们在横轴和纵轴上的位置表达分类、倾向或关系。设置一个主标题，明确标注横轴、纵轴及两端含义；每个对象由简洁的小图、名称和少量说明组成，位置分布应有辨识度并便于比较。保留坐标区域周围的大面积留白，避免复杂装饰和过多文字。"
-    },
-    {
-      "id": "IG-016",
-      "name": "分类树状型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-016.webp",
-      "prompt": "小红书信息图。排版：分类树 / 树状型，从一个核心大类或根节点开始，向下分成若干主要小类，再继续分解为更细的子类或末端节点。设置清晰的主标题，根节点位于顶部或中心上方，各级节点通过连线体现所属关系和分支路径。每个节点使用简短名称或极少说明，层级深度、分支顺序和阅读路径必须清楚。保留适度留白，避免过度装饰和无关信息。"
-    },
-    {
-      "id": "IG-017",
-      "name": "思维导图型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-017.webp",
-      "prompt": "小红书信息图。排版：思维导图型，中心主题作为核心节点，向外延伸多条分支；每条分支包含若干短标签或小图标，清楚表达从中心到子主题的层级关系。避免规则表格和过密文字，使用自然弯曲的连线、适度留白和简洁角色概括形成清晰阅读路径。"
-    },
-    {
-      "id": "IG-018",
-      "name": "关系网络型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-018.webp",
-      "prompt": "小红书信息图。排版：关系网络型，多个对象分布在画面中，用不同颜色或粗细的连线表达合作、影响、依赖或关联关系。可以只有弱中心，不要求所有节点平均分布；节点名称保持简短，整体留白充足，避免复杂表格和密集说明。"
-    },
-    {
-      "id": "IG-019",
-      "name": "循环闭环型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-019.webp",
-      "prompt": "小红书信息图。排版：循环闭环型，多个阶段围成圆形或环形路径，用连续箭头串联，强调持续循环、反馈和迭代，而不是开始到结束的单向流程。中心保留标题或核心结论，节点配小图和短句，留白清楚，避免拥挤。"
-    },
-    {
-      "id": "IG-020",
-      "name": "路径地图型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-020.webp",
-      "prompt": "小红书信息图。排版：路径地图型，一条弯曲、蜿蜒或游戏地图式路线贯穿画面，沿途安排多个编号节点、地点或阶段。每个节点配一个小视觉和一句短说明，用箭头、虚线或路标表达探索方向；不必是真实地图，重点是路径和节点关系，保留大面积留白。"
-    },
-    {
-      "id": "IG-021",
-      "name": "真实地图标注型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-021.webp",
-      "prompt": "小红书信息图。排版：真实地图与标注型，以真实地图轮廓、街区、水系或区域关系作为主视觉，在地图上放置地点标记、极短说明和少量小图标。标注需避开主体遮挡，层级清楚，图例简洁，避免把地图做成密集列表。"
-    },
-    {
-      "id": "IG-022",
-      "name": "数字大字型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-022.webp",
-      "prompt": "小红书信息图。排版：数字大字型，以一个或多个超大数字作为绝对视觉主体，周围只放极短解释、单位或对象名称。数字要占据主要面积并形成强烈冲击，其他元素弱化，背景大面积留白，不加入复杂图表。"
-    },
-    {
-      "id": "IG-023",
-      "name": "排行榜型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-023.webp",
-      "prompt": "小红书信息图。排版：排行榜型，按1、2、3、4、5的明确顺序排列对象。每个对象配一个小图、名称和一项核心数据，可采用纵向排行、奖台或错落分层结构。重点突出名次差异和第一视觉对象，避免退化成普通无序清单。"
-    },
-    {
-      "id": "IG-024",
-      "name": "比例构成型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-024.webp",
-      "prompt": "小红书信息图。排版：比例构成型，使用圆环图、饼图、100人图标或色块面积表达整体中各部分所占比例。设置清晰图例和少量百分比标注，主图最大，说明简短，颜色区分明确，留白充足，避免堆叠过多指标。"
-    },
-    {
-      "id": "IG-025",
-      "name": "尺度比较型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-025.webp",
-      "prompt": "小红书信息图。排版：尺度比较型，让多个对象按真实或相对大小从小到大排列，视觉尺寸本身直接传递比较信息。对象高度概括，配极短名称或阶段标签，用基线、箭头或少量刻度强化递进关系，保持构图简单和大面积留白。"
-    },
-    {
-      "id": "IG-026",
-      "name": "拆解爆炸图型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-026.webp",
-      "prompt": "小红书信息图。排版：拆解爆炸图型，一个完整物体作为主体，多个零件或组件从主体中分离并围绕主体展开，用引导线说明每个组件的名称、用途或组成关系。重点表现“由什么组成”，不要做成普通标注图；角色高度概括，构图简单，大量留白。"
-    },
-    {
-      "id": "IG-027",
-      "name": "剖面截面型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-027.webp",
-      "prompt": "小红书信息图。排版：剖面 / 截面型，把一个整体建筑或物体切开，直接展示内部空间、楼层和功能分区。剖面主视觉占据主要面积，旁侧配置少量楼层标签或极短说明，切口和内部结构必须完整可读，角色高度概括，保留大量留白。"
-    },
-    {
-      "id": "IG-028",
-      "name": "连续场景信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-028.webp",
-      "prompt": "小红书信息图。排版：连续场景型，整张图是一幅连贯的空间或时间场景，多个信息节点自然藏在道路、人物、建筑和道具中。不要拆成卡片或规则网格；用场景关系串联信息，角色高度概括，构图简洁，保留大片天空、地面或背景留白。"
-    },
-    {
-      "id": "IG-029",
-      "name": "人物群像标签型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-029.webp",
-      "prompt": "小红书信息图。排版：人物群像 + 标签型，多个角色自由站位，不必形成规则宫格。每个角色配一个短标签或极短说明，角色之间保持清楚间距和视觉平衡，可用姿态、道具和大小差异表达区别。角色高度概括，背景大面积留白，避免复杂装饰。"
-    },
-    {
-      "id": "IG-030",
-      "name": "一大多小知识图谱型信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-030.webp",
-      "prompt": "小红书信息图。排版：一大多小知识图谱型，设置一个占据主要面积的大型核心图，作为画面最重要的视觉主体；在核心图周围分布若干尺寸明显更小的视觉单元，每个单元配一个极短标签、名称或说明。小单元围绕核心主题形成知识关联，但不要求规则网格或完全平均分布；通过留白、位置和适度连接表达整体关系。角色高度概括，构图简单，保留大量留白。"
-    },
-    {
-      "id": "IG-031",
-      "name": "百科全书式信息卡",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-031.webp",
-      "prompt": "小红书信息图。排版：百科全书式信息卡。采用“顶部主标本展示区 + 中部非对称多模块信息区 + 底部资料来源区”的三段式结构。顶部以主视觉实物/标本为核心，搭配标题、学名/副标题、分类标签与少量基础信息。中部通过细线网格、坐标系统和黄金分割组织6–10个信息模块，混合小标题、短文、图解、对比、数据条、地图、时间轴等形式，整体图文混排、秩序清晰、留白充足。底部设置弱化的编号、注释或来源说明区，整体呈现标本馆档案与现代博物馆导览牌融合的理性设计感。"
-    },
-    {
-      "id": "IG-032",
-      "name": "手绘编辑式知识信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-032.webp",
-      "prompt": "小红书信息图。排版：手绘编辑式知识信息图。采用“顶部超大标题 + 中部大型核心主视觉 + 周边多个带数字编号的知识点模块 + 底部总结区”的构图。核心主视觉明显大于其他元素，作为全图视觉中心；周围自然环绕分布4–8个知识点模块，每个模块带有清晰醒目的数字序号（如01、02、03、04）建立列表感与阅读动线。每个编号模块包含短标题、简短说明和一个小型视觉解释（如小场景插图、图标、对比、流程、思维泡泡或微型漫画）。模块围绕核心视觉灵活排布，非僵硬规则宫格，允许箭头、标签、对话气泡与手写注释穿插连接。底部设置一句话总结、关键词提炼或checklist清单区收束全图。整体呈现杂志编辑插画、知识信息图与轻漫画叙事融合的生动手绘质感。角色高度概括，构图简洁，较多留白。"
-    },
-    {
-      "id": "IG-033",
-      "name": "讲义式高密分析信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-033.webp",
-      "prompt": "小红书信息图。排版：讲义式高密分析信息图。一页高信息密度的讲义式分析排版，整体呈现“先总览、再分解、再总结”的清晰结构。顶部设置主标题栏与核心要点/速览区；中部为主体分析区，由多个带编号的独立分析卡片模块组成，各模块包含要点小标题、项目符号清单、公式框与局部图解说明，并穿插表格容器、步骤流程区与思维导图/流程连接区，通过不同大小的内容区形成丰富的视觉节奏；底部设置通栏重点结论区与易错提醒/避坑说明区，辅以边缘补充说明区与角落批注小框。版面遵循从上到下、从左到右的严谨阅读顺序，分区明确、容器边框分明，不做海报式单一视觉中心布局，不做机械均分网格，不添加知识点以外的纯装饰性图像元素。"
-    },
-    {
-      "id": "IG-034",
-      "name": "编辑式等距轴测全景地图信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-034.webp",
-      "prompt": "小红书信息图。排版：编辑式等距轴测全景地图信息图。采用纵向长幅构图，以一个连续展开的等距轴测微缩世界作为画面主体。主视觉像一座沿纵向自然生长的小型城市、主题乐园或幻想产业园，由多个大小差异明显、造型各异的独立场景节点组成。整个轴测世界集中在画面中央区域，但不要铺满画布，四周保留大量纯净背景和呼吸空间。场景节点不要按照规则网格排列，也不要切成等大的流程模块。建筑、设施、商店、工厂、交通工具、特殊装置等以不规则方式错落组合，通过道路、车辆、传送结构、空间方向或视觉动线产生联系。构图强调“一张完整世界地图”，而不是“多个步骤依次排开的流程图”。可以存在流程关系，但流程隐藏在空间叙事之中，不使用明显的大箭头串联所有节点。核心节点可以明显放大，次要节点缩小，局部甚至可以出现非常夸张的大型标志物、广告牌、纪念碑式装置、特殊建筑或巨型物件，以制造视觉节奏和幽默感。文字信息不要覆盖整个画面。标题、编号、简短说明、小型图例和局部注释主要放在画面外围留白区域，与附近场景进行弱连接。避免大量白色信息卡、统一尺寸说明框、规则章节标题和密集参数表。整体采用极简的二维轴测线稿插画语言：辅助色A细线轮廓、辅助色B建筑主体、主色背景及少量主色填色，基本限制在三色体系。无渐变、无真实材质、无复杂光影。建筑与设备保持高度概括、图标化和卡通化，不追求工程结构准确度；加入大量非常小的人物、动物、车辆和幽默互动细节，使整个世界具有“主题乐园地图 / 杂志插画地图 / 品牌世界观海报”的感觉。重点：大留白、中央连续轴测世界、不规则节点、大小强对比、外围零散注释、趣味叙事。避免：满版工业园、规则分区、标准流程卡、密集文字框、大量流程箭头、写实工厂、工程制图感、所有节点尺寸一致。"
-    },
-    {
-      "id": "IG-035",
-      "name": "2.5D等距轴测微缩场景",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-035.webp",
-      "prompt": "排版：2.5D等距轴测微缩场景。2.5D视角，等距轴测构图，微缩场景表现。"
-    },
-    {
-      "id": "IG-036",
-      "name": "迷宫大侦探高密度轴测全景信息图",
-      "group": "信息图",
-      "image": "images/layouts/infographics/IG-036.webp",
-      "prompt": "排版参考：<迷宫大侦探>式高密度轴测探索全景。\n1. 轴测俯瞰视角：采用约45°斜向俯瞰的轴测视角，同时清晰展示大场景顶部、侧面、空间动线与内部活动区域，整体保持统一的空间观察角度，减少透视变形。\n2. 多层次立体空间布局：多种场景元素交错立体排列，通过前景、中景、远景以及高低错层形成深远的空间纵深感，不同高度与楼层的场景相互连通，形成连续、可探索的空间结构。\n3. 多局部高密度构图：局部区域元素密度较高，但保留适当呼吸感留白；画面容纳大量人物、建筑构造、道具和独立事件，元素分布密集且保持清晰间隔，避免相互遮挡或视觉混乱，画面各区域均有可供观察的丰富内容。\n4. 多中心分区叙事：整体画面由多个相互关联的局部小型场景组成，每个区域具有相对独立的主题、人物活动和事件，不依赖单一视觉中心，形成多个局部视觉焦点，共同拼合构成宏大完整的统一大场景。\n5. 连续式视觉动线：通过通道、阶梯、走廊与道路动线建立连续的视觉引导路径，各场景沿动线自然衔接，不采用割裂的分格框线排版，观看顺序具有开放性，可从不同位置进入并自由探索。\n6. 大场景与微细节嵌套：大型建筑框架与道路构成宏观空间骨架，中型场景承载具体活动与事件，小型人物、道具、标识和微型细节填充局部空间，形成“大区域—小场景—微细节”的三级清晰信息层级。\n7. 全局均衡与局部变化：画面整体元素分布相对均衡，无单侧严重堆积失衡；局部通过建筑高度、空间尺度、人物数量和活动密度制造节奏起伏，在高信息密度下保持高度的空间秩序与各区域识别度。"
-    },
     {
       "id": "SB-001",
       "name": "规则网格",
@@ -3230,97 +3062,6 @@
       "prompt": "采用竖版上下三格漫画布局，三格大小一致，纵向排列。整体背景色和文字区背景色一致。\n每格都采用上图下文的结构，上方约80%的区域为完整的场景插画，下方约20%的区域为横向文字说明栏。\n图片占满上方区域左右无边框，文字栏紧贴图片底部，使用浅色背景。文字左对齐，以阿拉伯数字编号开头。\n上下三格之间用细横线分隔，保持统一的图片比例、文字栏高度和左右边距。每格表现一个独立的生活场景，整体布局简洁规整，不添加额外装饰。"
     },
     {
-      "id": "IP-001",
-      "name": "IP定位卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-001.webp",
-      "prompt": "IP定位卡。\n核心目的：回答 IP 为什么存在与商业/情绪定位。\n卡片内容：IP名称（中/英）、一句话定位（身份 + 核心价值 + 情绪作用）、3个核心调性标签、目标受众画像。\n画面构成：角色全身主形象居中或偏侧大图展示，视觉记忆点用小图标注，搭配大字排版的名称与定位金句，背景留白充足，具备品牌封面感。纯色背景。\nIP网感强，形象高度概括，用色克制，如果风格是2d则线条简洁，如果风格不是2d则材质、配件和装饰数量使用克制。小图情况下也有较高辨识度。\n默认从主题获取设计需求后先设计视觉隐喻，再设计一个好玩的 ip形象。\n默认使用2d 简笔画风，如果有风格指定，则以指定风格优先。\nIP默认采用非人的吉祥物形象。\n避免：额外的道具（除非是IP形象固定部分），和IP无关的氛围感元素。\n主题：{这里是主题描述}，请帮我设计一个好玩的ip形象"
-    },
-    {
-      "id": "IP-002",
-      "name": "角色形象三视图基准图",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-002.webp",
-      "prompt": "排版：角色三视图与头像基准图。画面呈现角色设定基准图，整齐水平排列展示。左侧为脖子以上的头像特写近照（HEADSHOT）；右侧依次为角色的全身正视图（FRONT VIEW）、全身侧视图（SIDE VIEW）、全身背视图（BACK VIEW）。各视图人物保持标准中立直立站姿，视角水平平视，身体比例与高度一致，下方附有简短视图标签。避免：不要歪头，不要拿道具，不要插兜，无倾斜动作。"
-    },
-    {
-      "id": "IP-003",
-      "name": "16宫格角色微信表情包",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-003.webp",
-      "prompt": "请用16宫格设计角色的微信表情包。"
-    },
-    {
-      "id": "IP-004",
-      "name": "IP服装与道具卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-004.webp",
-      "prompt": "这是IP形象设计之服装与道具卡：在参考图角色的基础上做视觉延展，展示多张常服搭配与专属随身道具。你来帮我设计。"
-    },
-    {
-      "id": "IP-005",
-      "name": "IP内容传播示范卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-005.webp",
-      "prompt": "这是IP形象设计之内容传播示范卡。核心目的：示范该IP的多张社交平台单图宣传与封面传播。你来帮我设计。"
-    },
-    {
-      "id": "IP-006",
-      "name": "IP角色家族卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-006.webp",
-      "prompt": "这是IP形象设计之家族卡，以参考图做视觉延展，设计多个同家族的其他IP形象。"
-    },
-    {
-      "id": "IP-007",
-      "name": "IP商业应用卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-007.webp",
-      "prompt": "这是IP形象设计之商业应用卡。 核心目的：展示实体周边产品的落地质感。卡片内容：核心衍生品类。你来帮我设计。"
-    },
-    {
-      "id": "IP-008",
-      "name": "IP角色关系卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-008.webp",
-      "prompt": "这是IP形象设计之角色关系卡。 核心目的：展现角色与伙伴/对手的相处机制。卡片内容：主角与搭档姓名、一句话互动模式。"
-    },
-    {
-      "id": "IP-009",
-      "name": "IP角色一日生活相册",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-009.webp",
-      "prompt": "请显示该角色真实的iphone相册截屏，如果主题没有指定默认角色一天的生活。竖屏。避免：手机框。"
-    },
-    {
-      "id": "IP-010",
-      "name": "IP角色社交圈动态卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-010.webp",
-      "prompt": "请显示该角色的微信朋友圈截屏，展示角色的朋友们发的朋友圈内容。避免：该角色自己发的内容。"
-    },
-    {
-      "id": "IP-011",
-      "name": "IP角色微信群聊界面卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-011.webp",
-      "prompt": "请显示该角色与朋友的微信聊天界面截屏。"
-    },
-    {
-      "id": "IP-012",
-      "name": "IP角色小红书主页卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-012.webp",
-      "prompt": "请显示该角色的小红书账号界面截屏。避免：手机框。"
-    },
-    {
-      "id": "IP-013",
-      "name": "IP招牌体态与动态力线卡",
-      "group": "IP设计",
-      "image": "images/layouts/ip-characters/IP-013.webp",
-      "prompt": "在参考图角色的基础上做视觉延展，展示多张角色的招牌体态与动态力线。你来帮我设计。"
-    },
-    {
       "id": "EC-001",
       "name": "单品主图",
       "group": "电商",
@@ -3487,6 +3228,531 @@
       "group": "电商",
       "image": "images/layouts/ecommerce/EC-024.webp",
       "prompt": "电商广告主视觉、Hero 或 KV。核心任务：围绕商品建立一个强烈、集中、具有传播力的核心视觉概念。受众：{由用户输入，或根据商品、品牌与传播资料总结}。主题：{由用户输入，或根据商品与传播目标总结}。文案：{由用户提供资料或者根据商品自行推断设计}。商品主体：{由用户指定、参考图识别或商品资料提取}。核心传播信息：{由用户提供，或根据商品卖点、品牌定位和传播目标提炼}。创意方向：{用户指定时优先；未指定时请根据商品属性和核心传播信息自主选择，如超现实、微缩世界、巨型商品、概念隐喻、艺术装置、流体世界、悬浮视觉、材质世界、编辑式广告等}。除事实信息与核心传播信息外，其余视觉创意请自主完成。场景和周边元素可以采用指定画风，但是必须保持商品的写实风格。"
+    },
+    {
+      "id": "IG-001",
+      "name": "标题金字塔图标信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-001.webp",
+      "prompt": "小红书信息图。排版：顶部设置明确标题，主体采用层级递进的金字塔示意图，每一层包含多个带标签的图标，使用分层结构清晰表达信息关系。"
+    },
+    {
+      "id": "IG-002",
+      "name": "中心主图标注信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-002.webp",
+      "prompt": "小红书信息图。排版：主图放在画面中央，周围环绕多个带线标签的注释，连接线分别指向主图的具体部位，对主体结构或细节进行清晰标注说明。"
+    },
+    {
+      "id": "IG-003",
+      "name": "多行左文右图信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-003.webp",
+      "prompt": "小红书信息图。高泛用性多层/多行图文并列结构。排版：顶部设置醒目的主标题区（可包含主标题、副标题、日期/标签或分类标语）；主体由多行（通常 3–5 层）垂直等距对齐的横向模块组成，每一行采用左侧文字信息（时间点/小标题/标签与要点说明）、右侧对应配图（场景插图/实物/产品图）的并列结构，各行保持整齐统一的水平对齐；底部可配置总结提示、实用贴士备忘或简短结语。该版式通用于各类横向分层条目展示，包括但不限于每日行程路线安排、图鉴速览、分类清单、步骤流程、多维度对照或对比等场景。"
+    },
+    {
+      "id": "IG-004",
+      "name": "双列多行对比信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-004.webp",
+      "prompt": "小红书信息图。排版：顶部设置主标题，主体分为左右两列进行对比，每列内部包含多行对应内容；保持两列结构清晰、行项相互对齐，突出不同对象之间的逐项比较关系。"
+    },
+    {
+      "id": "IG-005",
+      "name": "大主视觉下方图鉴信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-005.webp",
+      "prompt": "小红书信息图。整体采用“顶部超大标题＋中部大型结构主视觉＋下部图鉴式分类单元”的纵向结构。顶部设置一行醒目的大标题，字号明显大于其他文字，横向展开，占据独立标题区，并与下方内容保持清晰间距。画面中部放置一个尺寸很大的完整主视觉，占据画面主要宽度，作为整张卡片的核心；主视觉内部可根据自身结构划分若干区域，并直接嵌入简短标签，使文字与主视觉形成一体化标注，不拆成多个独立卡片。画面下部排列多个尺寸较小的独立视觉单元，采用规则但不过分拥挤的多列布局，每个单元由“小视觉＋下方短标签”组成，尺寸尽量统一，横向和纵向间距稳定，形成图鉴、目录或分类展示的扫描节奏。小单元数量可以较多，但必须明显小于中部主视觉，不使用复杂卡片框，依靠留白、对齐和重复结构建立秩序。整体阅读顺序为顶部标题→中部整体结构→下部细分类单元，避免左右分栏、复杂装饰和不规则拼贴。"
+    },
+    {
+      "id": "IG-006",
+      "name": "多层标题图标对比信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-006.webp",
+      "prompt": "小红书信息图。排版：设置一个主标题，主体由多个层级组成，每一层左侧放置该层标题，右侧整齐排列多个带文字标签的图标，用于呈现不同层级之间的对比关系。使用纯色背景，保留较多留白空间，整体构图简单。"
+    },
+    {
+      "id": "IG-007",
+      "name": "粗体标题标签小图卡",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-007.webp",
+      "prompt": "小红书信息图。排版：粗体标题，多行带标签小图，底部一行字，纯色背景，无框，较多留白空间。"
+    },
+    {
+      "id": "IG-008",
+      "name": "多路径流程步骤图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-008.webp",
+      "prompt": "小红书信息图。排版：设置一个主标题，主体采用流程步骤图结构，步骤路径可以是横向、纵向、S 形或其他清晰的路径式布局。每一步只包含一个小图和一句简短说明，步骤之间通过方向、顺序或适度引导关系连接。保留大面积留白，避免复杂装饰和过多文字。"
+    },
+    {
+      "id": "IG-009",
+      "name": "时间轴节点信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-009.webp",
+      "prompt": "小红书信息图。排版：设置一个主标题，主体采用时间轴型结构，用一条清晰的主轴串联多个节点。时间轴可以横向或纵向展开，每个节点包含一个小图、一个时间信息和一句简短说明。保持节点顺序清楚、层级明确，并保留大面积留白，避免复杂装饰和过多文字。"
+    },
+    {
+      "id": "IG-010",
+      "name": "阶段等级进阶信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-010.webp",
+      "prompt": "小红书信息图。排版：阶段进阶型，重点展示由低到高的等级变化和阶段提升，不以时间先后为组织依据。顶部设置简短醒目的主标题，主体可采用阶梯、上升箭头或清晰的层级结构，使进阶方向一目了然。各阶段配简洁小图、等级名称和简短说明，层级关系清楚，文字从简。保留大面积留白和舒适的阶段间距，构图简洁。"
+    },
+    {
+      "id": "IG-011",
+      "name": "前后变化对比信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-011.webp",
+      "prompt": "小红书信息图。排版：Before / After 型，前后变化是绝对视觉重点。将画面组织为前后两个主要区域，可以左右排列，也可以上下排列；两部分之间只放箭头、日期或极少量说明，用来表达变化方向。Before 与 After 各自呈现完整、可直接比较的主视觉，标签和文字保持简洁。保留大面积留白，避免复杂装饰和过多辅助信息。"
+    },
+    {
+      "id": "IG-012",
+      "name": "分层结构型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-012.webp",
+      "prompt": "小红书信息图。排版：分层结构型，围绕天然存在的层级关系组织信息，可以表现为上中下、内中外、表层深层或由基础到核心的多层结构。设置清晰的主标题，主体通过层层嵌套、上下分层或由下至上的结构展示不同层级；每一层配简洁名称、短句或小图，保持层级顺序和阅读关系明确。保留大面积留白，避免复杂装饰、过密文字和无关模块。"
+    },
+    {
+      "id": "IG-013",
+      "name": "漏斗转化型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-013.webp",
+      "prompt": "小红书信息图。排版：漏斗型，上宽下窄，通过逐层收窄的结构展示从广泛进入、筛选、转化、淘汰到聚焦沉淀的过程。设置清晰的主标题，漏斗各层配简洁的阶段名称、短句或小图，突出人数、对象或范围逐步减少而重点逐步集中的关系。层级顺序应清楚，保留大面积留白，避免复杂装饰和过多文字。"
+    },
+    {
+      "id": "IG-014",
+      "name": "四象限矩阵信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-014.webp",
+      "prompt": "小红书信息图。排版：矩阵型，以两条相互垂直的轴将内容划分为四个象限，优先采用清晰易读的 2×2 结构。设置一个主标题，并明确标注横轴、纵轴及其两端含义；每个象限放置一个主题单元，可包含简短标题、小图和少量说明。四个区域保持对齐、间距均衡和比较关系明确，保留大面积留白，避免复杂装饰和过多文字。"
+    },
+    {
+      "id": "IG-015",
+      "name": "坐标散点型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-015.webp",
+      "prompt": "小红书信息图。排版：坐标散点型，在一个清晰的坐标空间中散布多个不同对象，通过它们在横轴和纵轴上的位置表达分类、倾向或关系。设置一个主标题，明确标注横轴、纵轴及两端含义；每个对象由简洁的小图、名称和少量说明组成，位置分布应有辨识度并便于比较。保留坐标区域周围的大面积留白，避免复杂装饰和过多文字。"
+    },
+    {
+      "id": "IG-016",
+      "name": "分类树状型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-016.webp",
+      "prompt": "小红书信息图。排版：分类树 / 树状型，从一个核心大类或根节点开始，向下分成若干主要小类，再继续分解为更细的子类或末端节点。设置清晰的主标题，根节点位于顶部或中心上方，各级节点通过连线体现所属关系和分支路径。每个节点使用简短名称或极少说明，层级深度、分支顺序和阅读路径必须清楚。保留适度留白，避免过度装饰和无关信息。"
+    },
+    {
+      "id": "IG-017",
+      "name": "思维导图型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-017.webp",
+      "prompt": "小红书信息图。排版：思维导图型，中心主题作为核心节点，向外延伸多条分支；每条分支包含若干短标签或小图标，清楚表达从中心到子主题的层级关系。避免规则表格和过密文字，使用自然弯曲的连线、适度留白和简洁角色概括形成清晰阅读路径。"
+    },
+    {
+      "id": "IG-018",
+      "name": "关系网络型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-018.webp",
+      "prompt": "小红书信息图。排版：关系网络型，多个对象分布在画面中，用不同颜色或粗细的连线表达合作、影响、依赖或关联关系。可以只有弱中心，不要求所有节点平均分布；节点名称保持简短，整体留白充足，避免复杂表格和密集说明。"
+    },
+    {
+      "id": "IG-019",
+      "name": "循环闭环型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-019.webp",
+      "prompt": "小红书信息图。排版：循环闭环型，多个阶段围成圆形或环形路径，用连续箭头串联，强调持续循环、反馈和迭代，而不是开始到结束的单向流程。中心保留标题或核心结论，节点配小图和短句，留白清楚，避免拥挤。"
+    },
+    {
+      "id": "IG-020",
+      "name": "路径地图型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-020.webp",
+      "prompt": "小红书信息图。排版：路径地图型，一条弯曲、蜿蜒或游戏地图式路线贯穿画面，沿途安排多个编号节点、地点或阶段。每个节点配一个小视觉和一句短说明，用箭头、虚线或路标表达探索方向；不必是真实地图，重点是路径和节点关系，保留大面积留白。"
+    },
+    {
+      "id": "IG-021",
+      "name": "真实地图标注型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-021.webp",
+      "prompt": "小红书信息图。排版：真实地图与标注型，以真实地图轮廓、街区、水系或区域关系作为主视觉，在地图上放置地点标记、极短说明和少量小图标。标注需避开主体遮挡，层级清楚，图例简洁，避免把地图做成密集列表。"
+    },
+    {
+      "id": "IG-022",
+      "name": "数字大字型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-022.webp",
+      "prompt": "小红书信息图。排版：数字大字型，以一个或多个超大数字作为绝对视觉主体，周围只放极短解释、单位或对象名称。数字要占据主要面积并形成强烈冲击，其他元素弱化，背景大面积留白，不加入复杂图表。"
+    },
+    {
+      "id": "IG-023",
+      "name": "排行榜型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-023.webp",
+      "prompt": "小红书信息图。排版：排行榜型，按1、2、3、4、5的明确顺序排列对象。每个对象配一个小图、名称和一项核心数据，可采用纵向排行、奖台或错落分层结构。重点突出名次差异和第一视觉对象，避免退化成普通无序清单。"
+    },
+    {
+      "id": "IG-024",
+      "name": "比例构成型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-024.webp",
+      "prompt": "小红书信息图。排版：比例构成型，使用圆环图、饼图、100人图标或色块面积表达整体中各部分所占比例。设置清晰图例和少量百分比标注，主图最大，说明简短，颜色区分明确，留白充足，避免堆叠过多指标。"
+    },
+    {
+      "id": "IG-025",
+      "name": "尺度比较型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-025.webp",
+      "prompt": "小红书信息图。排版：尺度比较型，让多个对象按真实或相对大小从小到大排列，视觉尺寸本身直接传递比较信息。对象高度概括，配极短名称或阶段标签，用基线、箭头或少量刻度强化递进关系，保持构图简单和大面积留白。"
+    },
+    {
+      "id": "IG-026",
+      "name": "拆解爆炸图型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-026.webp",
+      "prompt": "小红书信息图。排版：拆解爆炸图型，一个完整物体作为主体，多个零件或组件从主体中分离并围绕主体展开，用引导线说明每个组件的名称、用途或组成关系。重点表现“由什么组成”，不要做成普通标注图；角色高度概括，构图简单，大量留白。"
+    },
+    {
+      "id": "IG-027",
+      "name": "剖面截面型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-027.webp",
+      "prompt": "小红书信息图。排版：剖面 / 截面型，把一个整体建筑或物体切开，直接展示内部空间、楼层和功能分区。剖面主视觉占据主要面积，旁侧配置少量楼层标签或极短说明，切口和内部结构必须完整可读，角色高度概括，保留大量留白。"
+    },
+    {
+      "id": "IG-028",
+      "name": "连续场景信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-028.webp",
+      "prompt": "小红书信息图。排版：连续场景型，整张图是一幅连贯的空间或时间场景，多个信息节点自然藏在道路、人物、建筑和道具中。不要拆成卡片或规则网格；用场景关系串联信息，角色高度概括，构图简洁，保留大片天空、地面或背景留白。"
+    },
+    {
+      "id": "IG-029",
+      "name": "人物群像标签型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-029.webp",
+      "prompt": "小红书信息图。排版：人物群像 + 标签型，多个角色自由站位，不必形成规则宫格。每个角色配一个短标签或极短说明，角色之间保持清楚间距和视觉平衡，可用姿态、道具和大小差异表达区别。角色高度概括，背景大面积留白，避免复杂装饰。"
+    },
+    {
+      "id": "IG-030",
+      "name": "一大多小知识图谱型信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-030.webp",
+      "prompt": "小红书信息图。排版：一大多小知识图谱型，设置一个占据主要面积的大型核心图，作为画面最重要的视觉主体；在核心图周围分布若干尺寸明显更小的视觉单元，每个单元配一个极短标签、名称或说明。小单元围绕核心主题形成知识关联，但不要求规则网格或完全平均分布；通过留白、位置和适度连接表达整体关系。角色高度概括，构图简单，保留大量留白。"
+    },
+    {
+      "id": "IG-031",
+      "name": "百科全书式信息卡",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-031.webp",
+      "prompt": "小红书信息图。排版：百科全书式信息卡。采用“顶部主标本展示区 + 中部非对称多模块信息区 + 底部资料来源区”的三段式结构。顶部以主视觉实物/标本为核心，搭配标题、学名/副标题、分类标签与少量基础信息。中部通过细线网格、坐标系统和黄金分割组织6–10个信息模块，混合小标题、短文、图解、对比、数据条、地图、时间轴等形式，整体图文混排、秩序清晰、留白充足。底部设置弱化的编号、注释或来源说明区，整体呈现标本馆档案与现代博物馆导览牌融合的理性设计感。"
+    },
+    {
+      "id": "IG-032",
+      "name": "手绘编辑式知识信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-032.webp",
+      "prompt": "小红书信息图。排版：手绘编辑式知识信息图。采用“顶部超大标题 + 中部大型核心主视觉 + 周边多个带数字编号的知识点模块 + 底部总结区”的构图。核心主视觉明显大于其他元素，作为全图视觉中心；周围自然环绕分布4–8个知识点模块，每个模块带有清晰醒目的数字序号（如01、02、03、04）建立列表感与阅读动线。每个编号模块包含短标题、简短说明和一个小型视觉解释（如小场景插图、图标、对比、流程、思维泡泡或微型漫画）。模块围绕核心视觉灵活排布，非僵硬规则宫格，允许箭头、标签、对话气泡与手写注释穿插连接。底部设置一句话总结、关键词提炼或checklist清单区收束全图。整体呈现杂志编辑插画、知识信息图与轻漫画叙事融合的生动手绘质感。角色高度概括，构图简洁，较多留白。"
+    },
+    {
+      "id": "IG-033",
+      "name": "讲义式高密分析信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-033.webp",
+      "prompt": "小红书信息图。排版：讲义式高密分析信息图。一页高信息密度的讲义式分析排版，整体呈现“先总览、再分解、再总结”的清晰结构。顶部设置主标题栏与核心要点/速览区；中部为主体分析区，由多个带编号的独立分析卡片模块组成，各模块包含要点小标题、项目符号清单、公式框与局部图解说明，并穿插表格容器、步骤流程区与思维导图/流程连接区，通过不同大小的内容区形成丰富的视觉节奏；底部设置通栏重点结论区与易错提醒/避坑说明区，辅以边缘补充说明区与角落批注小框。版面遵循从上到下、从左到右的严谨阅读顺序，分区明确、容器边框分明，不做海报式单一视觉中心布局，不做机械均分网格，不添加知识点以外的纯装饰性图像元素。"
+    },
+    {
+      "id": "IG-034",
+      "name": "编辑式等距轴测全景地图信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-034.webp",
+      "prompt": "小红书信息图。排版：编辑式等距轴测全景地图信息图。采用纵向长幅构图，以一个连续展开的等距轴测微缩世界作为画面主体。主视觉像一座沿纵向自然生长的小型城市、主题乐园或幻想产业园，由多个大小差异明显、造型各异的独立场景节点组成。整个轴测世界集中在画面中央区域，但不要铺满画布，四周保留大量纯净背景和呼吸空间。场景节点不要按照规则网格排列，也不要切成等大的流程模块。建筑、设施、商店、工厂、交通工具、特殊装置等以不规则方式错落组合，通过道路、车辆、传送结构、空间方向或视觉动线产生联系。构图强调“一张完整世界地图”，而不是“多个步骤依次排开的流程图”。可以存在流程关系，但流程隐藏在空间叙事之中，不使用明显的大箭头串联所有节点。核心节点可以明显放大，次要节点缩小，局部甚至可以出现非常夸张的大型标志物、广告牌、纪念碑式装置、特殊建筑或巨型物件，以制造视觉节奏和幽默感。文字信息不要覆盖整个画面。标题、编号、简短说明、小型图例和局部注释主要放在画面外围留白区域，与附近场景进行弱连接。避免大量白色信息卡、统一尺寸说明框、规则章节标题和密集参数表。整体采用极简的二维轴测线稿插画语言：辅助色A细线轮廓、辅助色B建筑主体、主色背景及少量主色填色，基本限制在三色体系。无渐变、无真实材质、无复杂光影。建筑与设备保持高度概括、图标化和卡通化，不追求工程结构准确度；加入大量非常小的人物、动物、车辆和幽默互动细节，使整个世界具有“主题乐园地图 / 杂志插画地图 / 品牌世界观海报”的感觉。重点：大留白、中央连续轴测世界、不规则节点、大小强对比、外围零散注释、趣味叙事。避免：满版工业园、规则分区、标准流程卡、密集文字框、大量流程箭头、写实工厂、工程制图感、所有节点尺寸一致。"
+    },
+    {
+      "id": "IG-035",
+      "name": "2.5D等距轴测微缩场景",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-035.webp",
+      "prompt": "排版：2.5D等距轴测微缩场景。2.5D视角，等距轴测构图，微缩场景表现。"
+    },
+    {
+      "id": "IG-036",
+      "name": "迷宫大侦探高密度轴测全景信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-036.webp",
+      "prompt": "排版参考：<迷宫大侦探>式高密度轴测探索全景。\n1. 轴测俯瞰视角：采用约45°斜向俯瞰的轴测视角，同时清晰展示大场景顶部、侧面、空间动线与内部活动区域，整体保持统一的空间观察角度，减少透视变形。\n2. 多层次立体空间布局：多种场景元素交错立体排列，通过前景、中景、远景以及高低错层形成深远的空间纵深感，不同高度与楼层的场景相互连通，形成连续、可探索的空间结构。\n3. 多局部高密度构图：局部区域元素密度较高，但保留适当呼吸感留白；画面容纳大量人物、建筑构造、道具和独立事件，元素分布密集且保持清晰间隔，避免相互遮挡或视觉混乱，画面各区域均有可供观察的丰富内容。\n4. 多中心分区叙事：整体画面由多个相互关联的局部小型场景组成，每个区域具有相对独立的主题、人物活动和事件，不依赖单一视觉中心，形成多个局部视觉焦点，共同拼合构成宏大完整的统一大场景。\n5. 连续式视觉动线：通过通道、阶梯、走廊与道路动线建立连续的视觉引导路径，各场景沿动线自然衔接，不采用割裂的分格框线排版，观看顺序具有开放性，可从不同位置进入并自由探索。\n6. 大场景与微细节嵌套：大型建筑框架与道路构成宏观空间骨架，中型场景承载具体活动与事件，小型人物、道具、标识和微型细节填充局部空间，形成“大区域—小场景—微细节”的三级清晰信息层级。\n7. 全局均衡与局部变化：画面整体元素分布相对均衡，无单侧严重堆积失衡；局部通过建筑高度、空间尺度、人物数量和活动密度制造节奏起伏，在高信息密度下保持高度的空间秩序与各区域识别度。"
+    },
+    {
+      "id": "IG-037",
+      "name": "高精细手绘等距轴测地图信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-037.webp",
+      "prompt": "高精细手绘等距轴测地图信息图，鸟瞰视角，微缩城市景观，丰富的建筑与街道细节，鲜艳明亮的色彩，统一的季节氛围，清晰的道路，旅游导览地图风格，精致插画质感，高清细节，海报级视觉效果。根据主题进行信息标注。"
+    },
+    {
+      "id": "IG-038",
+      "name": "万能信息图",
+      "group": "信息图",
+      "image": "images/layouts/infographics/IG-038.webp",
+      "prompt": "排版：这是一张信息图。请根据主题帮我设计最适合的信息图样式。"
+    },
+    {
+      "id": "IP-001",
+      "name": "IP定位卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-001.webp",
+      "prompt": "IP定位卡。\n核心目的：回答 IP 为什么存在与商业/情绪定位。\n卡片内容：IP名称（中/英）、一句话定位（身份 + 核心价值 + 情绪作用）、3个核心调性标签、目标受众画像。\n画面构成：角色全身主形象居中或偏侧大图展示，视觉记忆点用小图标注，搭配大字排版的名称与定位金句，背景留白充足，具备品牌封面感。纯色背景。\nIP网感强，形象高度概括，用色克制，如果风格是2d则线条简洁，如果风格不是2d则材质、配件和装饰数量使用克制。小图情况下也有较高辨识度。\n默认从主题获取设计需求后先设计视觉隐喻，再设计一个好玩的 ip形象。\n默认使用2d 简笔画风，如果有风格指定，则以指定风格优先。\nIP默认采用非人的吉祥物形象。\n避免：额外的道具（除非是IP形象固定部分），和IP无关的氛围感元素。\n主题：{这里是主题描述}，请帮我设计一个好玩的ip形象"
+    },
+    {
+      "id": "IP-002",
+      "name": "角色形象三视图基准图",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-002.webp",
+      "prompt": "排版：角色三视图与头像基准图。画面呈现角色设定基准图，整齐水平排列展示。左侧为脖子以上的头像特写近照（HEADSHOT）；右侧依次为角色的全身正视图（FRONT VIEW）、全身侧视图（SIDE VIEW）、全身背视图（BACK VIEW）。各视图人物保持标准中立直立站姿，视角水平平视，身体比例与高度一致，下方附有简短视图标签。避免：不要歪头，不要拿道具，不要插兜，无倾斜动作。"
+    },
+    {
+      "id": "IP-003",
+      "name": "16宫格角色微信表情包",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-003.webp",
+      "prompt": "请用16宫格设计角色的微信表情包。"
+    },
+    {
+      "id": "IP-004",
+      "name": "IP服装与道具卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-004.webp",
+      "prompt": "这是IP形象设计之服装与道具卡：在参考图角色的基础上做视觉延展，展示多张常服搭配与专属随身道具。你来帮我设计。"
+    },
+    {
+      "id": "IP-005",
+      "name": "IP内容传播示范卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-005.webp",
+      "prompt": "这是IP形象设计之内容传播示范卡。核心目的：示范该IP的多张社交平台单图宣传与封面传播。你来帮我设计。"
+    },
+    {
+      "id": "IP-006",
+      "name": "IP角色家族卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-006.webp",
+      "prompt": "这是IP形象设计之家族卡，以参考图做视觉延展，设计多个同家族的其他IP形象。"
+    },
+    {
+      "id": "IP-007",
+      "name": "IP商业应用卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-007.webp",
+      "prompt": "这是IP形象设计之商业应用卡。 核心目的：展示实体周边产品的落地质感。卡片内容：核心衍生品类。你来帮我设计。"
+    },
+    {
+      "id": "IP-008",
+      "name": "IP角色关系卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-008.webp",
+      "prompt": "这是IP形象设计之角色关系卡。 核心目的：展现角色与伙伴/对手的相处机制。卡片内容：主角与搭档姓名、一句话互动模式。"
+    },
+    {
+      "id": "IP-009",
+      "name": "IP角色一日生活相册",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-009.webp",
+      "prompt": "请显示该角色真实的iphone相册截屏，如果主题没有指定默认角色一天的生活。竖屏。避免：手机框。"
+    },
+    {
+      "id": "IP-010",
+      "name": "IP角色社交圈动态卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-010.webp",
+      "prompt": "请显示该角色的微信朋友圈截屏，展示角色的朋友们发的朋友圈内容。避免：该角色自己发的内容。"
+    },
+    {
+      "id": "IP-011",
+      "name": "IP角色微信群聊界面卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-011.webp",
+      "prompt": "请显示该角色与朋友的微信聊天界面截屏。"
+    },
+    {
+      "id": "IP-012",
+      "name": "IP角色小红书主页卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-012.webp",
+      "prompt": "请显示该角色的小红书账号界面截屏。避免：手机框。"
+    },
+    {
+      "id": "IP-013",
+      "name": "IP招牌体态与动态力线卡",
+      "group": "IP设计",
+      "image": "images/layouts/ip-characters/IP-013.webp",
+      "prompt": "在参考图角色的基础上做视觉延展，展示多张角色的招牌体态与动态力线。你来帮我设计。"
+    },
+    {
+      "id": "SC-001",
+      "name": "上文下图社媒卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-001.webp",
+      "prompt": "小红书社媒卡。排版采用上文下图结构：上方集中放置主题文字和简短补充文案，下方放置完整主图或场景图。上下内容保持清晰的阅读顺序，图文关系自然，整体构图简洁。"
+    },
+    {
+      "id": "SC-002",
+      "name": "文案主导底部辅助图卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-002.webp",
+      "prompt": "小红书社媒卡。排版：视觉主体是文字，底部简单图案起辅助作用，图文之间有较大空间。纯色背景，较多留白空间，构图简单。"
+    },
+    {
+      "id": "SC-003",
+      "name": "上下双格图文卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-003.webp",
+      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作。上下带框两宫格，每一格都是上面一行字，下面配图，图文无明显分界，纯色背景，较多留白空间，角色高度概括，构图简单。"
+    },
+    {
+      "id": "SC-004",
+      "name": "上下双格图文分区卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-004.webp",
+      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作。上下带框两宫格，每一格都有一个图区和一个文字区，文字区可以在图的上方、左侧或右侧，文字区显示简单文案不做过多扩写，纯色背景，较多留白空间，角色高度概括，构图简单。"
+    },
+    {
+      "id": "SC-005",
+      "name": "气泡文字思考IP卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-005.webp",
+      "prompt": "小红书社媒卡。排版：无独立标题，视觉重点是使用主题的气泡文字，左下或右下放置一个思考状 IP 形象，构图简单，大面积留白。"
+    },
+    {
+      "id": "SC-006",
+      "name": "三层标题辅助图卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-006.webp",
+      "prompt": "小红书社媒卡。排版分为三层：上层放置主标题，中层放置一张尺寸较小、起辅助作用的简单图形，下层放置副标题。使用纯色背景，保留较多留白空间，整体构图简单。"
+    },
+    {
+      "id": "SC-007",
+      "name": "引号关键词文字卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-007.webp",
+      "prompt": "小红书文字型社媒卡。排版：左上放置一个醒目的双引号，中间呈现主题文案并将关键词重点化，右下放置一条下划线；句末可以添加与文字大小适配的 emoji。保持文字主导的简洁构图。"
+    },
+    {
+      "id": "SC-008",
+      "name": "图上文下留白卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-008.webp",
+      "prompt": "小红书社媒卡。排版采用图上文下结构，上方是高度概括的角色或场景图，下方是主题文案；图文之间不设置明显界线，让视觉自然衔接。使用纯色背景，保留较多留白空间，整体构图简单。"
+    },
+    {
+      "id": "SC-009",
+      "name": "居中文字右下辅助图卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-009.webp",
+      "prompt": "小红书文字型社媒卡。排版：主题文字作为视觉主体，居中显示；右下角放置一个简单的小图作为辅助，不抢夺文字的视觉重点。整体构图简洁。"
+    },
+    {
+      "id": "SC-010",
+      "name": "上下双格标题列表卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-010.webp",
+      "prompt": "小红书社媒卡。排版：无独立标题，根据主题创作上下带框的两宫格。每一格包含一行标题、约两三行的简短 list 文字和一张简单配图；文字保持简洁，不做过多扩写，图文之间不设置明显分界。使用纯色背景，保留较多留白空间，角色高度概括，整体构图简单。"
+    },
+    {
+      "id": "SC-011",
+      "name": "中心主图多场景信息卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-011.webp",
+      "prompt": "小红书社媒卡。排版：设置一个主标题，画面中央放置一个主图，周围安排 3–5 个与主体形象一致的简单信息图，并添加 2–3 个对主体的简短标注。使用纯色背景，保留较多留白空间，角色高度概括，整体构图简单。"
+    },
+    {
+      "id": "SC-012",
+      "name": "中心标题上下图标卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-012.webp",
+      "prompt": "小红书社媒卡。排版：标题垂直居中显示，标题上方整齐安排两行图标，标题下方也整齐安排两行图标，形成围绕中心标题的上下对称结构。保持图标排列清晰、构图简单。"
+    },
+    {
+      "id": "SC-014",
+      "name": "留白驱动主视觉信息卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-014.webp",
+      "prompt": "小红书社媒卡。整体保留大面积留白。顶部设置 1–2 行醒目的短标题，与主体区域形成清晰层级；中下部设置一个占据主要面积的大型主视觉，主视觉可居中、偏左或偏右，不固定位置，并通过主体自身的轮廓、姿态和占位关系自然形成若干留白区域。将 4–6 个尺寸较小的信息单元穿插在这些留白区域中，每个单元由一个小视觉元素与极短文字组成，位置服从主视觉留下的空间，不平均环绕主体，不形成规则左右分栏。小信息单元应明显小于主视觉并贴合主体轮廓的空隙，可上下错落、疏密变化，不能使用统一卡片框、规则宫格、表格或明显分割线。底部可保留一句很短的总结文字作为收尾。整体强调主视觉优先、留白驱动、信息穿插，画面完整而非模块拼接。"
+    },
+    {
+      "id": "SC-015",
+      "name": "上下双区递进短句卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-015.webp",
+      "prompt": "小红书社媒卡。整体采用上下两段式结构，将画面分成两个面积接近的独立内容区域，中间保留清晰间距或细分隔关系。两个区域使用统一的视觉语言和相近的内部结构，形成对照、前后、转折或递进关系。每个区域设置一个醒目的核心短句作为第一视觉层级，并安排一个尺寸明显较大的单一主视觉，与核心文字形成左右或斜向的非对称平衡；主视觉位置可根据留白和整体重心调整。核心文字与主视觉之外的剩余留白中，放置 2–4 行简短补充文字，不形成独立卡片或规则列表。上下两个区域保持相似的视觉重量和阅读节奏，但不要求完全镜像复制，可通过标题位置、主视觉方向或留白分布产生轻微变化；第二个区域可加入很短的过渡词、转折词或关系提示。整体强调“上下双区＋大短句＋单一主视觉＋少量补充说明”，避免复杂信息图、密集文字、规则宫格和过多装饰，保持大面积留白、层级清楚、手机端快速阅读。"
+    },
+    {
+      "id": "SC-016",
+      "name": "极简大字小图点缀卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-016.webp",
+      "prompt": "小红书社媒卡。整体采用极简的大留白结构，以一组大字号短文案作为绝对视觉主体。主文案放置在画面上半部或中上部，占据主要横向宽度，可使用 2–3 行自然换行；文字整体偏左排列，但不紧贴边缘，形成稳定的大块文字区域。主文案字号明显大于其他元素，行距相对紧凑，个别关键词可通过颜色、字重、底纹或轻微标记进行局部强调，但不要让多个词同时抢夺注意力。主文案下方保留较大的空白距离，在中央或略偏一侧放置一个尺寸很小的视觉点缀，作为第二视觉停顿，不承担主要信息。画面四角可以加入极少量微型辅助信息，例如日期、页码、符号或装饰点，字号和视觉重量都非常低。整体不设置卡片框、分栏、信息列表或复杂图文组合，背景保持简洁，强调大文字、少元素、大留白、弱装饰，形成轻盈安静、适合快速阅读的社媒封面感。"
+    },
+    {
+      "id": "SC-017",
+      "name": "自由标注留白信息卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-017.webp",
+      "prompt": "小红书社媒卡。排版：设置一个主标题，标签文字以自由、自然的方式分布在画面中，对画面里的角色、物件或场景元素做出简短注解，让文字参与整体构图。保留大面积留白，角色高度概括，减少装饰和复杂分区，保持构图简洁。"
+    },
+    {
+      "id": "SC-018",
+      "name": "中心主视觉环绕信息卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-018.webp",
+      "prompt": "小红书社媒卡。排版采用中心主视觉环绕式结构：顶部设置两级短标题，其中主标题醒目。画面中央放置一个占比最大的主体人物或物体，作为绝对视觉中心；主体四周分散安排 3–6 个尺寸较小的独立插图，每个小图旁仅配一个极短标签或事项名称。小图采用自由、不规则的环绕分布，左右和下方错落排布，保持视觉平衡而非整齐网格。背景保留大面积留白，主图、小图、文字之间保持明显间距，形成“一大主体＋多个小信息点”的层级关系。"
+    },
+    {
+      "id": "SC-019",
+      "name": "中央人物细线标注卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-019.webp",
+      "prompt": "小红书社媒卡。排版采用“顶部标题＋中央大人物＋左右零散标签”的三级结构。画面顶部放置一句醒目的短标题，字号最大，居中或略偏左。画面中央放置一个完整人物作为绝对视觉主体，人物占画面高度约 60%–75%，从中上部延伸到底部，保持完整轮廓。人物左右两侧分散安排 3–5 个极短标签，每个标签仅一行或短词组，并用简短细线、斜线或引导线指向人物附近对应位置。标签上下错落、自由分布，左右保持视觉平衡，不做成规则列表。人物与文字之间保留充足间距，不遮挡人物主体。背景大面积留白，不增加复杂图块、卡片框、表格或多余装饰，确保手机端一眼可读。"
+    },
+    {
+      "id": "SC-020",
+      "name": "一大一组非对称信息卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-020.webp",
+      "prompt": "小红书社媒卡。整体采用“一大一组”的非对称结构。顶部设置 1–2 行醒目的短标题，形成独立标题区域，并与下方主体保持明显间距。中部设置一个占据主要面积的大型主视觉，整体偏向画面一侧；在相对另一侧集中安排 4–6 个尺寸明显更小的信息单元，形成连续、紧凑的次级信息组。主视觉可以位于左侧或右侧，信息组随之镜像调整，不固定具体方向。小信息单元不环绕主视觉四周，也不分散到画面两侧，可上下错落、两列穿插或疏密变化；每个单元由一个小视觉元素与极短文字组成。主视觉区域约占中部内容面积的 55%–70%，信息组约占 25%–40%，两者通过留白自然分隔，不使用分栏线、统一卡片框、表格或规则宫格。底部可保留一行很短的总结文字。整体强调“一个大视觉块＋一个集中小信息簇”，版面非对称但稳定，避免中心辐射、四周环绕、平均分布或满画面散点排版。"
+    },
+    {
+      "id": "SC-021",
+      "name": "自适应双拼照片转译社媒卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-021.webp",
+      "prompt": "小红书社媒卡。排版：自适应双拼照片艺术转译型 (SC-021)。支持纯文本主题直出（由生图模型一体化生成）与上传照片垫图转绘。\n拼接时严禁修改或拉伸原图比例，两区面积严格 1:1 等大，无多余外框；由生图模型自主完成“真实摄影呈现 × 艺术风格转译”的前后虚实跨媒介对话：\n\n【画幅比例驱动切分原则（严禁死板切分，完全由目标比例决定）】：\n1. 竖版画幅（如 3:4、9:16、1:2 等纵向构图）：默认采用【上下 1:1 纵向堆叠双拼】。上方摄影区（占 50%），下方艺术转译区（占 50%），顺应手机端自上而下的视觉阅读动势与故事自然向下延展；\n2. 横版画幅（如 16:9、4:3、5:2、21:9、2.35:1 等横向构图）：默认采用【左右 1:1 横向并排双拼】。左侧摄影区（占 50%），右侧艺术转译区（占 50%），顺应横向视觉扫描序列，两侧均呈现方正/垂直的独立艺术杂志跨页质感；\n3. 方版画幅（1:1）与自由画幅：根据主体姿态动势与延伸线走向自适应（垂直动势采用上下拼，水平延展采用左右拼），亦可采用对角斜切或完全服从用户显式指定的分割方向。\n\n【真实摄影区（竖版上方 / 横版左侧）】：\n由生图模型根据主题生成超写实、高质感的单反摄影真实照片（若用户上传了参考图则以原图为准）。严格保持原始宽高比例与构图完整性，严禁拉伸变形。保持摄影真实景深、自然环境光线、真实皮肤/毛发质感与抓拍现场氛围，不做任何插画化处理，作为风格转译前的真实摄影基准。\n\n【艺术转译区（竖版下方 / 横版右侧）—— 彻底去写实、大面积留白与专属构图类型】：\n1. 彻底去写实化与画风从零重绘（坚决杜绝照片套滤镜）：\n艺术转译区必须与摄影区形成极具视觉冲击力的跨媒介反差！坚决不要在原照片的写实五官与体积光影上套滤镜。必须“只提取摄影区人物/主体的标志性特征、姿态神态与大轮廓”，在画风上完全按所选风格从零重绘为纯粹的 2D 手绘/艺术插画，让所选风格的笔触、线条、专属配色与质感辨识度最大化释放。\n\n2. 坚决彻底剔除原片环境杂质（四周留白是第一原则，严禁照抄全景背景）：\n严禁把摄影区的杂乱背景机械复制到转译区！转译侧画面四周边缘必须保留充足、干净的 40%–80% 负空间/呼吸留白底色（暖象牙白、米白棉麻纸纹），主体与文字向内部收拢，绝不贴边、绝不爆框。\n\n3. 七大核心转译类型体系（每次输出单义明确，并在文末附带编号清单供用户点选）：\nAI 在生成提示词时，若用户未指定类型，可默认选择最契合画面主题的 1 种类型（或按顺序轮替），并严格输出单义执行指令；同时必须在输出末尾附带 7 种可选类型清单（含编号），方便用户随时切换：\n- 【类型 01 · 视线锚点跨界续绘型 (Visual Anchor Continuation)】：两半部读作同一个连续发生的场景！在摄影中锁定一个具体物理锚点（水流、车道、光影、发丝、手势、枝条），该结构直接跨越接缝边界流淌/生长进入暖象牙纸手绘区域，在下方衍生出趣味绘本小故事，配 0–3 个极简黑线故事小人交互；\n- 【类型 02 · 撕纸裂变第二世界型 (Torn-Paper Second World)】：接缝处采用不规则手工物理撕纸毛边。现实世界穿透撕纸后进入“第二世界”，物理规则发生超现实突变（水变成可拉扯布匹、光变成被托起实体、影子变成可攀爬阶梯），暖象牙纸大面积留白，搭配克制照片碎片拼贴与极简小人；\n- 【类型 03 · 越界破框型 (Boundary Break / Out-of-Bounds)】：在纯白/暖纸底色中设置单枚低饱和几何色块/容器，主体大部分在色块内，但关键部位（头部、手臂、枝叶）自然突破色块边缘伸出，形成空间穿透感；\n- 【类型 04 · 微缩浮岛型 (Miniature Diorama / Floating Island)】：主体大幅微缩为占画面 10%–25% 的精致纸面小景，由一抹清淡色带或微型基座承托，四周呈现大片静谧空旷留白；\n- 【类型 05 · 记忆图谱平铺型 (Memory Knolling / Fragment Collage)】：居中放置手绘主体，留白中错落平铺 3–6 枚提取自原图的记忆特征小插画/贴纸（带 NO. 编号），间距透光，图鉴手账感；\n- 【类型 06 · 经典悬浮落地型 (Suspended / Grounded Hero)】：主体尺度适中（占 40%–55%），居中或微偏心站立，底部仅用一条极简手绘地面摩擦线提示空间；\n- 【类型 07 · 正负形咬合型 (Gestalt Positive-Negative Interlock)】：主体高度提炼为几何剪影，与背景正负形相互转换咬合。\n\n4. 编辑式微排版（文字优雅嵌入负空间）：\n在空白负空间中巧妙排布 1–2 组精致微排版（手绘艺术标题、4–8 词轻松手写英文随笔、编号标签），字迹纤细克制。\n\n【交互点选输出规范】：\n每当使用或输出 SC-021 提示词时，在提示词文本末尾，必须固定附带 7 大可选类型索引清单（如：`当前已采用【类型 01 · 视线锚点跨界续绘型】，若需切换可直接回复编号：01 跨界续绘 / 02 撕纸第二世界 / 03 越界破框 / 04 微缩浮岛 / 05 记忆图谱 / 06 悬浮落地 / 07 正负形咬合`），赋予用户随时点选换装的自由。"
+    },
+    {
+      "id": "SC-022",
+      "name": "姓名四款签名设计展示卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-022.webp",
+      "prompt": "【中文姓名】：{例如：唐伯虎}\n【姓名拼音】：{例如：TANG BOHU}\n【顶部背景色】：{例如：深钴蓝}\n【画幅比例】：9:16\n\n将输入的【中文姓名】制作成一张“姓名 → 四种签名方案”的竖版设计稿。\n\n## 一、整体排版\n\n画面比例为 9:16。\n\n上方约占画面 40%，用于展示原始姓名。\n\n下方约占画面 60%，用于展示同一个姓名的四种不同签名方案。\n\n---\n\n## 二、顶部姓名区\n\n顶部使用【顶部背景色】。\n\n顶部中央放置小字：\n\nNAME TO SIGNATURE\n\n画面中部展示【中文姓名】。\n\n姓名必须使用普通印刷字体，不使用手写、连笔、签名字体或艺术变形，用于明确表示原始输入姓名。\n\n中文姓名下方显示：\n\n【姓名拼音】\n\n姓名拼音使用大写英文字母。\n\n顶部区域不添加其他文案、Logo、编号或图形。\n\n---\n\n## 三、底部签名区\n\n底部划分为 2×2 四个区域。\n\n使用细虚线进行横向和纵向分隔，不需要外边框。\n\n四格分别展示同一个【中文姓名】的四种签名设计：\n\n左上：飘逸\n右上：锋势\n左下：回环\n右下：极简\n\n每格只包含：\n\n1. 一个大尺寸签名\n2. 下方一个小字号风格名称\n\n四个签名都必须来源于同一个【中文姓名】，但不能只是把完整姓名换四种相似写法。\n\n允许对姓名进行：\n\n省笔、合笔、连笔、共享笔画、压缩、拉长、缩写、拆解、重组、符号化。\n\n不要求每一个中文字都完整可辨。\n\n重点是保留姓名的部分结构特征，同时形成四种明显不同的签名骨架。\n\n---\n\n## 四、四种签名笔势\n\n### 1. 飘逸\n\n整体横向展开。\n\n姓名高度压缩，多个字之间可以连续连写、共享笔画。\n\n以连续曲线为主，笔势流畅。\n\n可以使用一至两条跨度较大的长线，将整个签名串联起来。\n\n允许出现较长的横向拖尾。\n\n整体结构强调：\n\n长线、曲线、连续、舒展、流动。\n\n减少过多尖角和短促折线。\n\n---\n\n### 2. 锋势\n\n整体具有明显向右推进的趋势。\n\n大量使用：\n\n斜线、尖角、高竖笔、快速切线、短促折笔。\n\n姓名可以高度压缩，只保留主要骨架。\n\n整体允许明显右倾。\n\n主笔可以形成较强的上挑、下切、斜向穿插关系。\n\n减少大面积圆形和柔软回环。\n\n整体结构强调：\n\n斜向、锐角、切线、速度、力量。\n\n---\n\n### 3. 回环\n\n以一个或多个大型回环结构作为签名主体。\n\n可以使用：\n\n开放圆环、椭圆曲线、大型 S 曲线、连续回转线、包围结构。\n\n将姓名压缩后的主要笔画嵌入回环内部，或让姓名笔画穿过回环。\n\n最后一笔可以突破主体，形成较长收尾。\n\n回环不能过于规则，应保留自然手写产生的不对称。\n\n整体结构强调：\n\n回旋、包围、穿插、连续曲线、大尺度手势。\n\n---\n\n### 4. 极简\n\n不完整书写整个姓名。\n\n从【中文姓名】中提取约 4–6 个最有识别价值的主要笔画，例如：\n\n长横、主竖、折笔、斜线、撇捺、点笔。\n\n重新组合成一个简化的个人签名标记。\n\n允许大幅度省略原姓名结构。\n\n整体笔画数量明显少于其他三款。\n\n避免添加与姓名无关的装饰图形。\n\n整体结构强调：\n\n少笔画、大留白、强骨架、符号化。\n\n---\n\n## 五、四款差异控制\n\n四种方案必须在以下方面产生明显区别：\n\n- 笔画数量\n- 横向或斜向趋势\n- 曲线与直线比例\n- 是否存在大型回环\n- 是否完整保留姓名\n- 重心位置\n- 连笔方式\n- 收尾方向\n- 整体轮廓\n\n四款不能只是修改同一个签名的尾笔。\n\n应形成四种不同结构：\n\n飘逸：长曲线 + 连续连写\n锋势：斜线 + 尖角 + 强方向性\n回环：大型曲线 + 包围结构\n极简：少量核心笔画 + 高度符号化\n\n最终只需要保留姓名、拼音、四个签名和四个风格名称，不添加其他内容。"
+    },
+    {
+      "id": "SC-023",
+      "name": "代表性情景概括知识封面卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-023.webp",
+      "prompt": "采用竖版4:5知识封面构图，参考图片中的大标题突出、人物紧凑环绕、情景自然穿插的布局方式。\n顶部约三分之一为醒目的主标题，分成两到三行，重点数字和关键词明显放大，局部搭配手绘色块突出视觉冲击力。整张图只保留主标题，不出现其他说明文字。\n标题下方安排4到6个最具代表性的情景，以角色为主要视觉元素，减少大面积环境和复杂背景。角色采用半身、近景与局部全身交错组合，最大的核心角色放在中央偏下位置，其他角色围绕分布在左右两侧和底部。角色之间有自然的前后遮挡、大小对比和动作呼应，形成紧凑但不拥挤的群像构图。\n每个情景表达不同的信息点，通过角色夸张的表情、肢体动作和少量关键道具快速传递含义。不使用分镜框，不做规则切块，不刻意完整展示每个场景，允许角色和道具适当交叠、局部超出画面，增强漫画封面的整体感。\n画面采用统一的背景，标题区保持干净纯粹，情景之间通过自然留白和少量手绘动态线衔接，不做明显分割。整体呈现上方标题强烈醒目、下方人物集中丰富、视觉重心明确的布局效果。"
+    },
+    {
+      "id": "SC-024",
+      "name": "图下文上留白卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-024.webp",
+      "prompt": "小红书社媒卡。排版采用图下文上结构，下方是高度概括的角色或场景图，上方是主题文案；整张图不设置大标题，图文之间不设置明显界线，让视觉自然衔接。使用纯色背景，保留较多留白空间，整体构图简单。"
+    },
+    {
+      "id": "SC-025",
+      "name": "漫画型社媒卡",
+      "group": "社媒卡",
+      "image": "images/layouts/social-cards/SC-025.webp",
+      "prompt": "小红书社媒卡。上文下图版式，包含多个气泡类文字表达，图文无明显边界。"
     }
   ],
   "color": [
