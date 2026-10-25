@@ -18,10 +18,46 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout source and catalog
+      - name: Checkout application
         uses: actions/checkout@v7
         with:
-          submodules: true
+          submodules: false
+          persist-credentials: false
+
+      - name: Download pinned handraw-style catalog
+        shell: pwsh
+        run: |
+          # 读取主项目锁定的子模块提交，不下载上游最新版本
+          $entry = git ls-tree HEAD -- handraw-style
+          if ($LASTEXITCODE -ne 0 -or
+              $entry -notmatch '^160000 commit ([0-9a-f]{40})\s') {
+            throw "Cannot determine pinned handraw-style commit"
+          }
+          $commit = $Matches[1]
+          Write-Host "Catalog commit: $commit"
+
+          $archive = Join-Path $env:RUNNER_TEMP "handraw-style.zip"
+          $extract = Join-Path $env:RUNNER_TEMP "handraw-style-extracted"
+
+          Invoke-WebRequest `
+            -Uri "https://github.com/yang0/handraw-style/archive/$commit.zip" `
+            -OutFile $archive
+
+          Expand-Archive -LiteralPath $archive -DestinationPath $extract
+
+          $source = Join-Path $extract "handraw-style-$commit"
+          if (-not (Test-Path -LiteralPath $source)) {
+            throw "Extracted catalog directory not found"
+          }
+
+          New-Item -ItemType Directory -Force handraw-style | Out-Null
+
+          Get-ChildItem -LiteralPath $source -Force |
+            Copy-Item -Destination handraw-style -Recurse -Force
+
+          if (-not (Test-Path handraw-style/images)) {
+            throw "Catalog images are missing"
+          }
 
       - name: Setup Node
         uses: actions/setup-node@v6
