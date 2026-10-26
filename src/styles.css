@@ -174,3 +174,12 @@ textarea::placeholder { color: #929891; }
 .update-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
 .settings-dialog progress { width: 100%; }
 .update-reminder { position: fixed; z-index: 20; right: 16px; bottom: 16px; max-width: calc(100vw - 32px); box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; background: #faf8f2; border: 1px solid #d8d2c6; border-radius: 8px; box-shadow: 0 4px 24px #0002; }
+.group-cover { position: relative; display: block; width: 100%; min-height: 60px; }
+.photo-count { position: absolute; top: 8px; right: 8px; padding: 3px 9px; border-radius: 12px; background: #fff; color: #27231e; }
+.group-thumbnails { display: flex; gap: 6px; }
+.gallery-card .group-thumbnails img { width: 48px; height: 40px; object-fit: cover; }
+.photo-navigation { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.photo-navigation [aria-pressed="true"] { background: #f0d8ad; }
+.group-info { margin: 12px 0; border: 1px solid #c7bdaa; padding: 12px; min-width: 0; }
+.group-info label { display: block; margin-bottom: 8px; }
+.group-info input { max-width: 100%; }

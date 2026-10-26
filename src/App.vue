@@ -4,13 +4,37 @@ import { generateImage, isDesktop, MAX_PROMPT_LENGTH } from './services/imageGen
 import OptionPicker from './components/OptionPicker.vue'
 import GalleryView from './components/GalleryView.vue'
 import AboutSettings from './components/AboutSettings.vue'
-import { discardPending, exportArtwork, message, retrySave, type Artwork, type Generated } from './services/gallery'
+import { discardPending, exportArtwork, message, retrySave, retryGroupSave, type Artwork, type GeneratedGroup } from './services/gallery'
 import { generationOptions, optionCategories, type GenerationSelections, type OptionCategory } from './services/generationOptions'
 
 const desktop = isDesktop()
 const updateLocked = ref(false)
 const view = ref<'workspace' | 'gallery'>('workspace')
-const generated = ref<Generated | null>(null)
+const generatedGroup = ref<GeneratedGroup | null>(null)
+const photoIndex = ref(0)
+const count = ref(1)
+const generated = computed(() => generatedGroup.value?.photos[photoIndex.value] ?? null)
+const hasUnsaved = computed(() => !!generatedGroup.value?.photos.some(p => p.save_error) || !!generatedGroup.value?.group_save_error)
+function selectPreview(index: number) {
+  photoIndex.value = index
+  image.value = generated.value?.image ?? ''
+  saveNotice.value = generated.value?.save_error ? '' : '已保存到图库'
+  exportError.value = ''
+}
+function photoSaved(id: string) {
+  const photo = generatedGroup.value?.photos.find(p => p.id === id)
+  if (photo) { photo.save_error = null; generatedGroup.value!.group_save_error = null }
+}
+async function saveGroupAgain() {
+  if (!generatedGroup.value || saving.value) return
+  saving.value = true
+  try {
+    await retryGroupSave(generatedGroup.value.group_id)
+    generatedGroup.value.group_save_error = null
+    if (!hasUnsaved.value) saveNotice.value = '已保存到图库'
+  } catch (cause) { generatedGroup.value.group_save_error = message(cause) }
+  finally { saving.value = false }
+}
 const saving = ref(false)
 const exportNotes = ref(true)
 const saveNotice = ref('')
@@ -94,7 +118,7 @@ async function showError(cause: unknown) {
 }
 
 async function generate() {
-  if (pending.value || saving.value || generated.value?.save_error || updateLocked.value || !desktop) return
+  if (pending.value || saving.value || hasUnsaved.value || updateLocked.value || !desktop) return
 
   error.value = ''
   errorDialog.value?.close()
@@ -102,12 +126,13 @@ async function generate() {
 
   try {
     submittedPrompt.value = prompt.value.trim()
-    const result = await generateImage(submittedPrompt.value, { ...selections.value }, reused.value?.id)
-    generated.value = result
-    image.value = result.image
+    const result = await generateImage(submittedPrompt.value, { ...selections.value }, reused.value?.id, count.value)
+    generatedGroup.value = result
+    photoIndex.value = 0
+    image.value = generated.value?.image ?? ''
     imagePrompt.value = submittedPrompt.value
     baseline.value = draft()
-    saveNotice.value = result.save_error ? '' : '已保存到图库'
+    saveNotice.value = hasUnsaved.value ? '' : '已保存到图库'
     exportError.value = ''
   } catch (cause) {
     await showError(cause)
@@ -122,6 +147,7 @@ async function saveAgain() {
   try {
     await retrySave(generated.value.id)
     generated.value.save_error = null
+    generatedGroup.value!.group_save_error = null
     saveNotice.value = '已保存到图库'
   } catch (cause) { generated.value.save_error = message(cause) }
   finally { saving.value = false }
@@ -141,7 +167,8 @@ async function discardExported() {
   saving.value = true
   try {
     await discardPending(generated.value.id)
-    generated.value = null
+    generatedGroup.value!.photos.splice(photoIndex.value, 1)
+    selectPreview(0)
     saveNotice.value = ''
   } catch (cause) { exportError.value = message(cause) }
   finally { saving.value = false }
@@ -150,7 +177,7 @@ async function discardExported() {
 function requestReuse(artwork: Artwork) {
   if (pending.value || saving.value) return
   replacement.value = artwork
-  if (draft() !== baseline.value || generated.value?.save_error) reuseDialog.value?.showModal()
+  if (draft() !== baseline.value || hasUnsaved.value) reuseDialog.value?.showModal()
   else applyReuse()
 }
 
@@ -192,13 +219,13 @@ function previewFailed() {
         <button type="button" :aria-current="view === 'gallery' ? 'page' : undefined" @click="changeView('gallery')">我的图库</button>
       </nav>
       <span class="mode-badge">{{ desktop ? '桌面应用' : '浏览器预览' }}</span>
-      <AboutSettings :working="pending || saving" :unsaved="!!generated?.save_error" @lock="updateLocked = $event" />
+      <AboutSettings :working="pending || saving" :unsaved="hasUnsaved" @lock="updateLocked = $event" />
     </header>
 
     <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
       @close="closePreview" @click="($event.target === previewDialog) && previewDialog?.close()"></dialog>
 
-    <GalleryView v-if="view === 'gallery'" :generation-pending="pending || saving" :revision="generated?.id" @reuse="requestReuse" />
+    <GalleryView v-if="view === 'gallery'" :generation-pending="pending || saving" :revision="`${generatedGroup?.group_id}-${hasUnsaved}`" @reuse="requestReuse" @saved="photoSaved" />
     <main v-show="view === 'workspace'" id="main" :class="{ 'compact-workspace': compact }">
       <section class="creation-panel panel" aria-labelledby="creation-title">
         <form :aria-busy="pending" @submit.prevent="generate">
@@ -227,12 +254,13 @@ function previewFailed() {
             <p class="input-hint">未选类别将按描述自由生成</p>
           </div>
           <div class="generation-action">
-            <button type="submit" :disabled="!desktop || pending || saving || updateLocked || !!generated?.save_error || !prompt.trim()">
+            <label>本组照片数量 <select v-model.number="count" :disabled="pending"><option v-for="n in 4" :key="n" :value="n">{{ n }} 张</option></select></label>
+            <button type="submit" :disabled="!desktop || pending || saving || updateLocked || hasUnsaved || !prompt.trim()">
               {{ pending ? '正在生成…' : '生成图片 ↗' }}
             </button>
-            <p id="generation-hint" class="input-hint">每次生成一张 · 通常需要几分钟</p>
+            <p id="generation-hint" class="input-hint">每次生成一个独立照片组 · 每张通常需要几分钟</p>
             <p v-if="updateLocked" class="input-hint">已预约更新，当前任务和作品保存完成后将安装。可在设置中取消。</p>
-            <p v-if="generated?.save_error" class="input-hint">请先在作品预览中重试保存，或导出后放弃本次图库保存，再继续生成。</p>
+            <p v-if="hasUnsaved" class="input-hint">请先逐张重试保存，或导出后放弃该图的图库保存，再继续生成。</p>
           </div>
         </form>
         <p v-if="!desktop" class="preview-hint">当前为浏览器预览。请启动桌面应用，并安装、登录本地 Codex 后生成图片。</p>
@@ -273,6 +301,15 @@ function previewFailed() {
             <p>{{ pending ? '画面正在慢慢成形…' : '生成的图片会出现在这里' }}</p>
           </div>
           <div class="response-area">
+            <template v-if="generatedGroup">
+              <p v-if="generatedGroup.group_save_error" class="error" role="alert">照片组信息保存失败：{{ generatedGroup.group_save_error }}。预览已保留，关闭应用前请重试。</p>
+              <button v-if="generatedGroup.group_save_error" type="button" :disabled="saving" @click="saveGroupAgain">重试保存组信息</button>
+              <p class="group-status">{{ generatedGroup.photos.length }} / {{ generatedGroup.expected_count }} 张成功 · 已保存 {{ generatedGroup.photos.filter(p => !p.save_error).length }} 张 · {{ generatedGroup.photos.filter(p => p.save_error).length }} 张待保存</p>
+              <div class="photo-navigation" aria-label="本次生成的照片">
+                <button v-for="(photo, index) in generatedGroup.photos" :key="photo.id" type="button" :disabled="saving" :aria-pressed="photoIndex === index" @click="selectPreview(index)">第 {{ index + 1 }} 张{{ photo.save_error ? ' · 待保存' : '' }}</button>
+              </div>
+              <p v-for="failure in generatedGroup.generation_errors" :key="failure" class="error">{{ failure }}</p>
+            </template>
             <div v-if="generated" class="save-controls">
               <p v-if="generated.save_error" role="alert" class="error">图库保存失败：{{ generated.save_error }}。预览已保留；关闭应用前请重试或导出。</p>
               <p class="save-status" aria-live="polite">{{ saving ? '正在处理…' : saveNotice }}</p>

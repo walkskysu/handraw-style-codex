@@ -16,9 +16,9 @@ const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(10 * 60);
 static BUSY: AtomicBool = AtomicBool::new(false);
 
-struct GenerationGuard;
+pub struct GenerationGuard;
 impl GenerationGuard {
-    fn acquire() -> Result<Self, String> {
+    pub fn acquire() -> Result<Self, String> {
         BUSY.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_| "已有图片正在生成，请稍候。".to_string())?;
         Ok(Self)
@@ -35,22 +35,23 @@ pub struct Output {
     pub tool_version: Option<String>,
 }
 
-pub fn generate(prompt: &str, snapshot: &Snapshot) -> Result<Output, String> {
-    let prompt = validate_prompt(prompt)?;
-    let description = apply_snapshot(prompt, snapshot);
-    let _guard = GenerationGuard::acquire()?;
-    let executable = find_codex()?;
-    let tool_version = codex_version(&executable);
-    let workspace = tempfile::Builder::new()
-        .prefix("handraw-")
-        .tempdir()
-        .map_err(|e| format!("无法创建图片生成目录：{e}"))?;
-    let mut command = codex_command(&executable);
-    let image = run_generation(&mut command, workspace.path(), &description, TIMEOUT)?;
-    Ok(Output {
-        image,
-        tool_version,
-    })
+impl GenerationGuard {
+    pub fn generate(&self, prompt: &str, snapshot: &Snapshot) -> Result<Output, String> {
+        let prompt = validate_prompt(prompt)?;
+        let description = apply_snapshot(prompt, snapshot);
+        let executable = find_codex()?;
+        let tool_version = codex_version(&executable);
+        let workspace = tempfile::Builder::new()
+            .prefix("handraw-")
+            .tempdir()
+            .map_err(|e| format!("无法创建图片生成目录：{e}"))?;
+        let mut command = codex_command(&executable);
+        let image = run_generation(&mut command, workspace.path(), &description, TIMEOUT)?;
+        Ok(Output {
+            image,
+            tool_version,
+        })
+    }
 }
 
 // Read only the explicit version output, never authentication or model configuration.
@@ -96,7 +97,7 @@ fn parse_version(text: &str) -> Option<String> {
     Some(text.trim().into())
 }
 
-fn validate_prompt(prompt: &str) -> Result<&str, String> {
+pub fn validate_prompt(prompt: &str) -> Result<&str, String> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
         return Err("请先描述你想生成的画面。".into());

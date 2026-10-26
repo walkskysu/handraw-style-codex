@@ -7,6 +7,13 @@ vi.mock('@tauri-apps/api/core', { spy: true })
 afterEach(() => clearMocks())
 
 describe('image generation IPC', () => {
+  it.each([0, 5, -1, 1.5, NaN])('rejects invalid group sizes before IPC (%s)', async count => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(true)
+    const ipc = vi.fn()
+    mockIPC(ipc)
+    await expect(generateImage('小猫', {}, undefined, count)).rejects.toThrow('1–4')
+    expect(ipc).not.toHaveBeenCalled()
+  })
   it('explains browser limitations without invoking a desktop command', async () => {
     vi.spyOn(core, 'isTauri').mockReturnValue(false)
     const ipc = vi.fn()
@@ -17,12 +24,12 @@ describe('image generation IPC', () => {
 
   it('passes a trimmed, otherwise unchanged prompt to Rust', async () => {
     vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const result = { id: 'artwork', image: 'data:image/png;base64,test', save_error: null }
+    const result = { group_id: 'group', photos: [{ id: 'artwork', image: 'data:image/png;base64,test', save_error: null }], expected_count: 1, generation_errors: [] }
     const ipc = vi.fn().mockResolvedValue(result)
     mockIPC(ipc)
     const prompt = '小猫\n" & $(echo test) <script>'
     await expect(generateImage(`  ${prompt}  `)).resolves.toEqual(result)
-    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt, selections: {} })
+    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt, selections: {}, count: 1 })
   })
 
   it.each(Array.from({ length: 8 }, (_, mask) => mask))('passes independent selections through IPC (mask %i)', async (mask) => {
@@ -36,7 +43,7 @@ describe('image generation IPC', () => {
     }
     // Option specifications must not consume the user's 4000-character allowance.
     await generateImage('画'.repeat(4000), selections)
-    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt: '画'.repeat(4000), selections })
+    expect(ipc).toHaveBeenCalledExactlyOnceWith('generate_image', { prompt: '画'.repeat(4000), selections, count: 1 })
   })
 
   it.each(['', ' \t\n', '\u3000', '画'.repeat(4001)])('rejects invalid prompts before IPC (%#)', async (prompt) => {

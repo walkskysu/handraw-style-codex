@@ -16,6 +16,12 @@ type Result<T> = std::result::Result<T, String>;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Artwork {
     pub id: String,
+    #[serde(default)]
+    pub group_id: String,
+    #[serde(default)]
+    pub position: usize,
+    #[serde(default = "saved_status")]
+    pub save_status: String,
     pub title: String,
     pub prompt: String,
     pub snapshot: Snapshot,
@@ -33,6 +39,10 @@ pub struct Artwork {
     pub model: Option<String>,
     pub tool_version: Option<String>,
     pub app_version: String,
+}
+
+fn saved_status() -> String {
+    "saved".into()
 }
 
 pub struct PendingArtwork {
@@ -72,6 +82,9 @@ impl PendingArtwork {
         let id = uuid::Uuid::new_v4().to_string();
         Ok(Self {
             artwork: Artwork {
+                group_id: id.clone(),
+                position: 0,
+                save_status: "saved".into(),
                 image_path: format!("images/{}/{id}.png", now.format("%Y-%m")),
                 thumbnail_path: format!("thumbnails/{id}.webp"),
                 id,
@@ -98,25 +111,9 @@ impl PendingArtwork {
 
 pub struct Store {
     root: PathBuf,
-    db: Connection,
+    pub(super) db: Connection,
     // An OS lock prevents a second app instance from cleaning another instance's in-flight files.
     _lock: fs::File,
-}
-
-#[derive(Serialize)]
-pub struct Card {
-    pub id: String,
-    pub title: String,
-    pub created_at: String,
-    pub favorite: bool,
-    pub thumbnail: String,
-}
-
-#[derive(Serialize)]
-pub struct Page {
-    pub items: Vec<Card>,
-    pub total: usize,
-    pub page: usize,
 }
 
 impl Store {
@@ -150,11 +147,12 @@ impl Store {
             _lock: lock,
         };
         store.recover()?;
+        store.migrate_groups()?;
         Ok(store)
     }
 
     // Never accept filesystem paths from IPC or follow paths outside the application directory.
-    fn path(&self, relative: &str) -> Result<PathBuf> {
+    pub(super) fn path(&self, relative: &str) -> Result<PathBuf> {
         let relative = Path::new(relative);
         if relative
             .components()
@@ -175,7 +173,7 @@ impl Store {
         Ok(path)
     }
 
-    fn all(&self) -> Result<Vec<Artwork>> {
+    pub(super) fn all(&self) -> Result<Vec<Artwork>> {
         let mut query = self
             .db
             .prepare("SELECT metadata FROM artworks")
@@ -223,6 +221,7 @@ impl Store {
         if exists {
             return self.get(&pending.artwork.id);
         }
+        self.ensure_group(&pending.artwork)?;
         let image = decode(&pending.bytes)?;
         let mut thumbnail = Cursor::new(Vec::new());
         image
@@ -281,46 +280,6 @@ impl Store {
         fs::read(self.path(&artwork.image_path)?).map_err(|e| format!("无法读取原图：{e}"))
     }
 
-    pub fn list(&self, search: &str, favorite: bool, deleted: bool, page: usize) -> Result<Page> {
-        // instr treats %, _ and quotes literally, and bound parameters keep searches out of SQL.
-        let filter = "deleted=?1 AND (?2=0 OR favorite=1) AND (instr(lower(title),lower(?3))>0 OR instr(lower(prompt),lower(?3))>0)";
-        let total: usize = self
-            .db
-            .query_row(
-                &format!("SELECT count(*) FROM artworks WHERE {filter}"),
-                params![deleted, favorite, search.trim()],
-                |r| r.get::<_, i64>(0),
-            )
-            .map_err(|e| e.to_string())?
-            .try_into()
-            .map_err(|_| "图库记录数量超出支持范围".to_string())?;
-        let page = page.max(1).min(total.saturating_sub(1) / 9 + 1);
-        let mut query = self.db.prepare(&format!("SELECT metadata FROM artworks WHERE {filter} ORDER BY created_at DESC,id DESC LIMIT 9 OFFSET ?4"))
-            .map_err(|e| e.to_string())?;
-        let rows = query
-            .query_map(
-                params![deleted, favorite, search.trim(), ((page - 1) * 9) as i64],
-                |r| r.get::<_, String>(0),
-            )
-            .map_err(|e| e.to_string())?;
-        let items = rows
-            .map(|row| {
-                let a: Artwork = serde_json::from_str(&row.map_err(|e| e.to_string())?)
-                    .map_err(|e| e.to_string())?;
-                let thumbnail = STANDARD
-                    .encode(fs::read(self.path(&a.thumbnail_path)?).map_err(|e| e.to_string())?);
-                Ok(Card {
-                    id: a.id,
-                    title: a.title,
-                    created_at: a.created_at,
-                    favorite: a.favorite,
-                    thumbnail: format!("data:image/webp;base64,{thumbnail}"),
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        Ok(Page { items, total, page })
-    }
-
     pub fn update(
         &self,
         id: &str,
@@ -337,6 +296,7 @@ impl Store {
             return Err("标题需为 1–200 字；最多 30 个标签，每个不超过 80 字。".into());
         }
         let mut a = self.get(id)?;
+        let restoring = a.deleted && !deleted;
         a.title = title.trim().into();
         a.tags = tags;
         a.favorite = favorite;
@@ -353,6 +313,12 @@ impl Store {
                 ],
             )
             .map_err(|e| e.to_string())?;
+        self.repair_cover(&a.group_id)?;
+        if restoring {
+            let mut group = self.group(&a.group_id)?;
+            group.deleted = false;
+            self.put_group(&group)?;
+        }
         Ok(a)
     }
 
@@ -379,6 +345,16 @@ impl Store {
 mod tests {
     use super::*;
     use crate::options::{self, Selections};
+
+    fn list(
+        store: &Store,
+        search: &str,
+        favorite: bool,
+        deleted: bool,
+        page: usize,
+    ) -> Result<crate::groups::GroupPage> {
+        store.list_groups(search, false, favorite, deleted, page, &[])
+    }
 
     fn pending(prompt: &str) -> PendingArtwork {
         let snapshot = options::snapshot(
@@ -410,7 +386,7 @@ mod tests {
         let pending = pending("窗边的小猫\n<script>literal</script>");
         let a = store.save(&pending).unwrap();
         assert_eq!(store.save(&pending).unwrap().id, a.id); // retries are idempotent
-        assert_eq!(store.list("", false, false, 1).unwrap().total, 1);
+        assert_eq!(list(&store, "", false, false, 1).unwrap().total, 1);
         assert_eq!(
             fs::read(dir.path().join(&a.image_path)).unwrap(),
             pending.bytes
@@ -467,12 +443,12 @@ mod tests {
             p.artwork.created_at = format!("2026-10-21T00:00:{i:02}+00:00");
             ids.push(store.save(&p).unwrap().id);
         }
-        let first = store.list("", false, false, 1).unwrap();
+        let first = list(&store, "", false, false, 1).unwrap();
         assert_eq!(first.total, 11);
         assert_eq!(first.items.len(), 9);
-        assert_eq!(first.items[0].id, ids[10]);
-        assert_eq!(store.list("", false, false, 2).unwrap().items.len(), 2);
-        assert_eq!(store.list("", false, false, usize::MAX).unwrap().page, 2);
+        assert_eq!(first.items[0].group.id, ids[10]);
+        assert_eq!(list(&store, "", false, false, 2).unwrap().items.len(), 2);
+        assert_eq!(list(&store, "", false, false, usize::MAX).unwrap().page, 2);
         let a = store
             .update(
                 &ids[0],
@@ -482,20 +458,23 @@ mod tests {
                 false,
             )
             .unwrap();
-        assert_eq!(store.list("100%_cat'", false, false, 1).unwrap().total, 1);
-        assert_eq!(store.list("小猫 9", false, false, 1).unwrap().total, 1);
-        assert_eq!(store.list("' OR 1=1 --", false, false, 1).unwrap().total, 0);
-        assert_eq!(store.list("", true, false, 1).unwrap().total, 1);
+        assert_eq!(list(&store, "100%_cat'", false, false, 1).unwrap().total, 1);
+        assert_eq!(list(&store, "小猫 9", false, false, 1).unwrap().total, 1);
+        assert_eq!(
+            list(&store, "' OR 1=1 --", false, false, 1).unwrap().total,
+            0
+        );
+        assert_eq!(list(&store, "", true, false, 1).unwrap().total, 1);
         assert!(store.purge(&a.id).is_err());
         store
             .update(&a.id, a.title.clone(), a.tags.clone(), true, true)
             .unwrap();
-        assert_eq!(store.list("", false, false, 1).unwrap().total, 10);
-        assert_eq!(store.list("", false, true, 1).unwrap().total, 1);
+        assert_eq!(list(&store, "", false, false, 1).unwrap().total, 10);
+        assert_eq!(list(&store, "", false, true, 1).unwrap().total, 1);
         store
             .update(&a.id, a.title.clone(), a.tags.clone(), true, false)
             .unwrap();
-        assert_eq!(store.list("", false, false, 1).unwrap().total, 11);
+        assert_eq!(list(&store, "", false, false, 1).unwrap().total, 11);
         assert_eq!(store.get(&a.id).unwrap().tags, vec!["水彩"]);
         store.update(&a.id, a.title, a.tags, true, true).unwrap();
         store.purge(&a.id).unwrap();
@@ -513,7 +492,7 @@ mod tests {
         assert!(store.save(&p).err().unwrap().contains("disk full"));
         assert!(!dir.path().join(&p.artwork.image_path).exists());
         assert!(!dir.path().join(&p.artwork.thumbnail_path).exists());
-        assert_eq!(store.list("", false, false, 1).unwrap().total, 0);
+        assert_eq!(list(&store, "", false, false, 1).unwrap().total, 0);
         assert_eq!(fs::read_dir(dir.path().join("staging")).unwrap().count(), 0);
         store.db.execute_batch("DROP TRIGGER fail_save").unwrap();
         assert_eq!(store.save(&p).unwrap().id, p.artwork.id);
@@ -527,7 +506,7 @@ mod tests {
         fs::create_dir(dir.path().join(&p.artwork.thumbnail_path)).unwrap();
         assert!(store.save(&p).is_err());
         assert!(!dir.path().join(&p.artwork.image_path).exists());
-        assert_eq!(store.list("", false, false, 1).unwrap().total, 0);
+        assert_eq!(list(&store, "", false, false, 1).unwrap().total, 0);
         fs::remove_dir(dir.path().join(&p.artwork.thumbnail_path)).unwrap();
         store.save(&p).unwrap();
     }
@@ -551,7 +530,7 @@ mod tests {
         let reopened = Store::open(dir.path().into()).unwrap();
         assert!(reopened.get(&missing.id).is_err());
         assert!(!dir.path().join(&missing.thumbnail_path).exists());
-        assert_eq!(reopened.list("", false, true, 1).unwrap().total, 1);
+        assert_eq!(list(&reopened, "", false, true, 1).unwrap().total, 1);
         assert!(reopened.image(&good.id).is_ok());
         for path in [
             "staging/unfinished",
