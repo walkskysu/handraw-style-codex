@@ -153,7 +153,10 @@ pub async fn update_install(app: tauri::AppHandle) -> Result<(), String> {
     let update = state.update.as_ref().ok_or("请先检查更新。")?;
     let bytes = state.verified.as_ref().ok_or("请先下载并校验更新包。")?;
     // This shares a lock with task admission: no generation can slip in after this check.
-    crate::with_gallery(&app, |s| s.work.install(!s.pending.is_empty()))?;
+    crate::with_gallery(&app, |s| {
+        s.work
+            .install(!s.pending.is_empty() || !s.pending_groups.is_empty())
+    })?;
     let result = (|| {
         let root = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
         std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;

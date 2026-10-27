@@ -14,7 +14,7 @@ const image = 'data:image/png;base64,aW1hZ2U='
 const mockIPC = (callback: Parameters<typeof installIPC>[0]) => installIPC(async (...args) => {
   const result = await callback(...args)
   return typeof result === 'string' && result.startsWith('data:image/')
-    ? { id: 'generated-artwork', image: result, save_error: null } : result
+    ? { group_id: 'generated-group', photos: [{ id: 'generated-artwork', image: result, save_error: null }], expected_count: 1, generation_errors: [] } : (result && typeof result === 'object' && 'save_error' in result ? { group_id: 'generated-group', photos: [result], expected_count: 1, generation_errors: [] } : result)
 })
 
 // jsdom does not implement the native dialog API. Model its open/close lifecycle;
@@ -180,7 +180,7 @@ describe('image generation workspace', () => {
     expect(wrapper.findAll('fieldset').every((field) => field.attributes('disabled') !== undefined)).toBe(true)
     await flushPromises()
     expect(ipc).toHaveBeenNthCalledWith(1, 'generate_image', {
-      prompt: '小猫', selections: { style: 'FH-044', layout: 'EC-024', color: 'C-36' },
+      prompt: '小猫', count: 1, selections: { style: 'FH-044', layout: 'EC-024', color: 'C-36' },
     })
     expect(wrapper.get('[data-selection="style"] img').attributes('src')).toBeTruthy()
     await wrapper.get('[data-selection="layout"] .clear-selection').trigger('click')
@@ -188,7 +188,7 @@ describe('image generation workspace', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(ipc).toHaveBeenNthCalledWith(2, 'generate_image', {
-      prompt: '小猫', selections: { style: 'FH-044', color: 'C-36' },
+      prompt: '小猫', count: 1, selections: { style: 'FH-044', color: 'C-36' },
     })
     expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
   })
