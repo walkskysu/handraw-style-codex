@@ -3,7 +3,6 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { clearMocks, mockIPC as installIPC } from '@tauri-apps/api/mocks'
 import * as core from '@tauri-apps/api/core'
 import GalleryView from '../src/components/GalleryView.vue'
-import App from '../src/App.vue'
 import type { Artwork } from '../src/services/gallery'
 
 vi.mock('@tauri-apps/api/core', { spy: true })
@@ -27,7 +26,6 @@ const mockIPC = (handler: Parameters<typeof installIPC>[0]) => installIPC(async 
   }
   const result: any = await handler(command, args)
   if (command === 'gallery_list') return { ...result, photo_total: result.total, items: result.items.map((a: Artwork) => ({ ...group(a), ...a, thumbnails: [], photo_count: 1, pending_count: 0, matching_count: 1, matching_ids: [a.id] })) }
-  if (command === 'generate_image' && result?.id) return { group_id: result.id, photos: [result], expected_count: 1, generation_errors: [] }
   return result
 })
 const group = (a: Artwork) => ({ ...a, expected_count: 1, generated_count: 1, generation_errors: [], cover_id: a.id, source_group_id: null, source_photo_id: null, status: 'complete' })
@@ -58,27 +56,6 @@ function galleryIPC() {
 const button = (wrapper: ReturnType<typeof mount>, text: string) => wrapper.findAll('button').find(b => b.text() === text)!
 
 describe('persistent gallery UI', () => {
-  it('keeps photos visible when only group metadata failed to save and retries that group', async () => {
-    const ipc = vi.fn((command: string) => {
-      if (command === 'generate_image') return { group_id: 'metadata-pending', photos: [{ id: 'one', image, save_error: null }], expected_count: 1, generation_errors: [], group_save_error: 'disk full' }
-      if (command === 'gallery_group_retry') return null
-      throw new Error(command)
-    })
-    installIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('#prompt').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
-    expect(wrapper.text()).toContain('照片组信息保存失败')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await button(wrapper, '重试保存组信息').trigger('click')
-    await flushPromises()
-    expect(ipc).toHaveBeenCalledWith('gallery_group_retry', { id: 'metadata-pending' })
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(1)
-  })
-
   it('opens the matching photo first while keeping the whole group browsable and actions scoped', async () => {
     const photos = [artwork('one'), artwork('two'), artwork('three')].map((a, position) => ({ ...a, group_id: 'group', position }))
     let g = { ...group(photos[0]!), id: 'group', expected_count: 4, generated_count: 3, generation_errors: ['第 4 张生成失败'] }
@@ -120,35 +97,6 @@ describe('persistent gallery UI', () => {
     await flushPromises()
     expect(ipc).toHaveBeenCalledWith('gallery_group_update', expect.objectContaining({ id: 'group', deleted: true }))
     expect(wrapper.get<HTMLDialogElement>('dialog').element.open).toBe(false)
-  })
-
-  it('retries only the unsaved photo in a partial result and the next generate creates a new request', async () => {
-    const ipc = vi.fn((command: string) => {
-      if (command === 'generate_image') return { group_id: 'batch', expected_count: 4, generation_errors: ['第 4 张：生成失败'], photos: [
-        { id: 'one', image, save_error: null }, { id: 'two', image, save_error: '磁盘已满' }, { id: 'three', image, save_error: null },
-      ] }
-      if (command === 'gallery_retry') return artwork('two')
-      throw new Error(command)
-    })
-    installIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('#prompt').setValue('多图小猫')
-    await wrapper.get('select').setValue('4')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(ipc).toHaveBeenCalledWith('generate_image', { prompt: '多图小猫', selections: {}, count: 4 })
-    expect(wrapper.get('.group-status').text()).toContain('3 / 4 张成功 · 已保存 2 张 · 1 张待保存')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await wrapper.findAll('.photo-navigation button')[1]!.trigger('click')
-    await button(wrapper, '重试保存').trigger('click')
-    await flushPromises()
-    expect(ipc).toHaveBeenCalledWith('gallery_retry', { id: 'two' })
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(1)
-    expect(wrapper.get('.group-status').text()).toContain('已保存 3 张 · 0 张待保存')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(2)
   })
 
   it('can retry an unsaved photo from its group and notifies the workspace', async () => {
@@ -304,59 +252,4 @@ describe('persistent gallery UI', () => {
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
-  it('preserves the generated preview on save failure, supports cancelled export and retries the same ID', async () => {
-    const ipc = vi.fn((command: string) => {
-      if (command === 'generate_image') return { id: 'pending-id', image, save_error: '磁盘已满' }
-      if (command === 'gallery_export') return false
-      if (command === 'gallery_retry') return artwork('pending-id')
-      throw new Error(command)
-    })
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('#prompt').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
-    expect(wrapper.text()).toContain('图库保存失败：磁盘已满')
-    expect(wrapper.text()).not.toContain('已保存到图库')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await button(wrapper, '导出图片').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).not.toContain('已导出图片')
-    expect(ipc).toHaveBeenCalledWith('gallery_export', { id: 'pending-id', includeNotes: true })
-    await button(wrapper, '重试保存').trigger('click')
-    await flushPromises()
-    expect(ipc).toHaveBeenCalledWith('gallery_retry', { id: 'pending-id' })
-    expect(wrapper.text()).toContain('已保存到图库')
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(1)
-  })
-
-  it('confirms before replacing edits, refills historical configuration and generates a new artwork', async () => {
-    const handler = galleryIPC()
-    mockIPC(async (command, args) => command === 'generate_image'
-      ? { id: 'new-artwork', image, save_error: null } : handler(command, args))
-    const invoke = vi.spyOn(core, 'invoke')
-    const wrapper = mount(App, { attachTo: document.body })
-    await wrapper.get('#prompt').setValue('未保存的修改')
-    await button(wrapper, '我的图库').trigger('click')
-    await flushPromises()
-    await wrapper.get('.gallery-card').trigger('click')
-    await flushPromises()
-    await button(wrapper, '复用创作').trigger('click')
-    const confirm = wrapper.get<HTMLDialogElement>('.reuse-dialog')
-    expect(confirm.element.open).toBe(true)
-    await confirm.findAll('button')[1]!.trigger('click')
-    expect(wrapper.get<HTMLTextAreaElement>('#prompt').element.value).toBe('未保存的修改')
-    await button(wrapper, '复用创作').trigger('click')
-    await button(wrapper, '确认复用').trigger('click')
-    await flushPromises()
-    expect(wrapper.get<HTMLTextAreaElement>('#prompt').element.value).toBe('旧的描述')
-    expect(wrapper.get('[data-selection="style"]').text()).toContain('历史风格名称')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(invoke).toHaveBeenCalledWith('generate_image', { prompt: '旧的描述', selections: { style: 'FA-001' }, reuseId: 'saved-1', count: 1 })
-    expect(wrapper.text()).toContain('已保存到图库')
-  })
 })

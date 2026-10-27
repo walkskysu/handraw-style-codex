@@ -1,7 +1,13 @@
+#[cfg(test)]
+mod acceptance_tests;
+mod creation;
 mod gallery;
 mod generation;
 mod groups;
+mod jobs;
+mod migrations;
 mod options;
+mod planning;
 mod updates;
 
 use std::{collections::HashMap, sync::Mutex};
@@ -60,6 +66,15 @@ impl GalleryState {
 
     fn save(&mut self, app: &tauri::AppHandle, id: &str) -> Result<gallery::Artwork, String> {
         self.store(app)?;
+        let store = self.store.as_ref().unwrap();
+        if store.item(id).is_ok() {
+            // Gallery and task previews must commit the same item state, not just an Artwork.
+            let result = store.retry_item_save(id, self.pending.get(id));
+            if result.is_ok() {
+                self.pending.remove(id);
+            }
+            return result;
+        }
         let group_id = if let Some(p) = self.pending.get(id) {
             p.artwork.group_id.clone()
         } else {
@@ -86,134 +101,6 @@ fn with_gallery<T>(
     let state = app.state::<Mutex<GalleryState>>();
     let mut state = state.lock().map_err(|_| "图库任务意外结束，请重启应用。")?;
     action(&mut state)
-}
-
-#[derive(serde::Serialize)]
-struct Generated {
-    id: String,
-    image: String,
-    save_error: Option<String>,
-}
-
-#[derive(serde::Serialize)]
-struct GeneratedGroup {
-    group_id: String,
-    photos: Vec<Generated>,
-    expected_count: usize,
-    generation_errors: Vec<String>,
-    group_save_error: Option<String>,
-}
-
-#[tauri::command]
-async fn generate_image(
-    app: tauri::AppHandle,
-    prompt: String,
-    selections: Option<options::Selections>,
-    reuse_id: Option<String>,
-    count: Option<usize>,
-) -> Result<GeneratedGroup, String> {
-    generation::validate_prompt(&prompt)?;
-    let count = count.unwrap_or(1);
-    if !(1..=4).contains(&count) {
-        return Err("每组可生成 1–4 张照片。".into());
-    }
-    let work = WorkGuard::begin(&app)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let _work = work;
-        let generation = generation::GenerationGuard::acquire()?;
-        let previous = reuse_id
-            .map(|id| with_gallery(&app, |s| s.store(&app)?.get(&id)))
-            .transpose()?;
-        let snapshot = options::snapshot(
-            &selections.unwrap_or_default(),
-            previous.as_ref().map(|a| &a.snapshot),
-        )?;
-        let mut group = groups::PhotoGroup::new(
-            prompt.trim().into(),
-            snapshot.clone(),
-            count,
-            previous.as_ref(),
-        );
-        with_gallery(&app, |s| s.store(&app)?.put_group(&group))?;
-        let submitted =
-            generation::instructions(&options::apply_snapshot(prompt.trim(), &snapshot));
-        let mut photos = vec![];
-        let mut group_save_error = None;
-        for position in 0..count {
-            let result = generation.generate(&prompt, &snapshot).and_then(|output| {
-                let mut pending = gallery::PendingArtwork::new(
-                    &output.image,
-                    prompt.clone(),
-                    snapshot.clone(),
-                    submitted.clone(),
-                )?;
-                pending.artwork.tool_version = output.tool_version;
-                pending.artwork.group_id = group.id.clone();
-                pending.artwork.position = position;
-                Ok((pending, output.image))
-            });
-            match result {
-                Ok((pending, image)) => {
-                    let id = pending.artwork.id.clone();
-                    let save_error = with_gallery(&app, |s| {
-                        s.pending.insert(id.clone(), pending);
-                        s.save(&app, &id).map(|_| ())
-                    })
-                    .err();
-                    group.generated_count += 1;
-                    if group.cover_id.is_none() && save_error.is_none() {
-                        group.cover_id = Some(id.clone());
-                    }
-                    photos.push(Generated {
-                        id,
-                        image,
-                        save_error,
-                    });
-                }
-                Err(error) => group
-                    .generation_errors
-                    .push(format!("第 {} 张：{error}", position + 1)),
-            }
-            group.status = if position + 1 < count {
-                "generating"
-            } else if group.generated_count == 0 {
-                "failed"
-            } else if group.generated_count == count {
-                "complete"
-            } else {
-                "partial"
-            }
-            .into();
-            group_save_error = with_gallery(&app, |s| {
-                // Preserve edits made while this batch was running.
-                let current = match s.pending_groups.get(&group.id) {
-                    Some(current) => current.clone(),
-                    None => s.store(&app)?.group(&group.id)?,
-                };
-                group.title = current.title;
-                group.tags = current.tags;
-                group.favorite = current.favorite;
-                s.persist_group(&group)
-            })
-            .err();
-        }
-        if photos.is_empty() {
-            with_gallery(&app, |s| {
-                s.pending_groups.remove(&group.id);
-                Ok(())
-            })?;
-            return Err(group.generation_errors.join("\n"));
-        }
-        Ok(GeneratedGroup {
-            group_id: group.id,
-            photos,
-            expected_count: count,
-            generation_errors: group.generation_errors,
-            group_save_error,
-        })
-    })
-    .await
-    .map_err(|_| "图片生成任务意外结束，请重试。".to_string())?
 }
 
 #[tauri::command]
@@ -277,7 +164,14 @@ async fn gallery_detail(
                 ));
             }
             let store = s.store(&app)?;
-            Ok((store.get(&id)?, store.image(&id)?))
+            let mut artwork = store.get(&id)?;
+            let image = if store.path(&artwork.image_path)?.is_file() {
+                store.image(&id)?
+            } else {
+                artwork.availability = "missing".into();
+                String::new()
+            };
+            Ok((artwork, image))
         })
     })
     .await
@@ -337,6 +231,23 @@ async fn gallery_group_update(
 }
 
 #[tauri::command]
+fn gallery_group_cover(
+    app: tauri::AppHandle,
+    id: String,
+    photo_id: String,
+) -> Result<groups::PhotoGroup, String> {
+    with_gallery(&app, |s| s.store(&app)?.set_cover(&id, &photo_id))
+}
+
+#[tauri::command]
+fn gallery_open_backups(app: tauri::AppHandle) -> Result<(), String> {
+    // This remains usable when opening/migrating the database itself failed.
+    let root = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let path = root.join("backups");
+    open::that(if path.is_dir() { path } else { root }).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn gallery_group_export(
     app: tauri::AppHandle,
     id: String,
@@ -390,6 +301,10 @@ async fn gallery_retry(app: tauri::AppHandle, id: String) -> Result<gallery::Art
 #[tauri::command]
 fn gallery_discard_pending(app: tauri::AppHandle, id: String) -> Result<(), String> {
     with_gallery(&app, |s| {
+        let store = s.store(&app)?;
+        if store.item(&id).is_ok() {
+            store.discard_result(&id)?;
+        }
         s.pending.remove(&id);
         Ok(())
     })
@@ -432,9 +347,7 @@ async fn gallery_export(
             return Ok((pending.artwork.clone(), pending.bytes.clone()));
         }
         let store = s.store(&app)?;
-        let artwork = store.get(&id)?;
-        let bytes = store.bytes(&artwork)?;
-        Ok((artwork, bytes))
+        store.exportable(&id)
     })?;
     let mut dialog = rfd::AsyncFileDialog::new()
         .set_title("导出图片")
@@ -471,11 +384,23 @@ pub fn run() {
             updates::UpdateState::default(),
         ))
         .invoke_handler(tauri::generate_handler![
-            generate_image,
+            creation::draft_update,
+            creation::job_list,
+            creation::job_get,
+            creation::plan_create,
+            creation::plan_select_version,
+            creation::generation_start_quick,
+            creation::plan_confirm_and_start,
+            creation::generation_stop,
+            creation::generation_continue,
+            creation::generation_retry_save,
+            creation::generation_item_image,
             gallery_list,
             gallery_group_detail,
             gallery_group_retry,
             gallery_group_update,
+            gallery_group_cover,
+            gallery_open_backups,
             gallery_group_export,
             gallery_detail,
             gallery_retry,
@@ -489,6 +414,7 @@ pub fn run() {
             updates::update_install,
             updates::update_manual
         ])
+        .on_window_event(creation::prevent_unsafe_close)
         .run(tauri::generate_context!())
         .expect("启动 Handraw 时发生错误");
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { isDesktop } from '../services/imageGeneration'
-import { displayTime, exportArtwork, exportGroup, getArtwork, getGroup, listGallery, message, purgeArtwork, retrySave, updateArtwork, updateGroup, type Artwork, type GalleryCard, type GalleryPage, type GroupDetail } from '../services/gallery'
+import { displayTime, exportArtwork, exportGroup, getArtwork, getGroup, listGallery, message, purgeArtwork, retrySave, setGroupCover, updateArtwork, updateGroup, type Artwork, type GalleryCard, type GalleryPage, type GroupDetail } from '../services/gallery'
+import { label as statusLabel } from '../services/creation'
 import { optionCategories } from '../services/generationOptions'
 
 const props = defineProps<{ generationPending: boolean; revision?: string }>()
@@ -46,6 +47,10 @@ load()
 onBeforeUnmount(() => { request++; detail.value?.close() })
 
 async function selectPhoto(id: string) {
+  if (selected.value && selected.value.id !== id && (title.value !== selected.value.title || tags.value !== selected.value.tags.join(', '))) {
+    // A rejected save leaves the editor and current photo intact.
+    await update({ title: title.value, tags: tags.value.split(/[,，]/).map(t => t.trim()).filter(Boolean) })
+  }
   const [artwork, image] = await getArtwork(id)
   selected.value = artwork; fullImage.value = image
   title.value = artwork.title; tags.value = artwork.tags.join(', ')
@@ -133,6 +138,7 @@ function reuse() {
         <span v-if="card.thumbnails.length" class="group-thumbnails"><img v-for="(thumbnail, index) in card.thumbnails" :key="index" :src="thumbnail" alt="组内照片" loading="lazy" /></span>
         <strong>{{ card.favorite ? '★ ' : '' }}{{ card.title }}</strong>
         <time :datetime="card.created_at">{{ displayTime(card.created_at) }}</time>
+        <span>{{ statusLabel(card.status) }}</span>
         <span v-if="search.trim()">本组 {{ card.photo_count }} 张 · {{ card.matching_count }} 张匹配</span>
         <span v-if="card.generated_count < card.expected_count">{{ card.generated_count }} / {{ card.expected_count }} 张成功</span>
         <span v-if="card.pending_count">已保存 {{ card.photo_count }} 张 · {{ card.pending_count }} 张待保存</span>
@@ -160,14 +166,16 @@ function reuse() {
             <button v-if="deleted && groupDetail.group.deleted" type="button" @click="act(async () => { await editGroup({ deleted: false }); detail?.close() })">恢复整组</button>
           </div>
           <p>{{ groupDetail.group.generated_count }} / {{ groupDetail.group.expected_count }} 张成功 · {{ displayTime(groupDetail.group.created_at) }}</p>
-          <p v-if="groupDetail.group.source_photo_id" class="input-hint">复用来源组：{{ groupDetail.group.source_group_id }} · 来源照片：{{ groupDetail.group.source_photo_id }}</p>
+          <p v-if="groupDetail.group.source_photo_id" class="input-hint">{{ groupDetail.source_available === false ? '来源已删除' : `复用来源组：${groupDetail.group.source_group_id} · 来源照片：${groupDetail.group.source_photo_id}` }}</p>
+          <details v-if="groupDetail.group.confirmed_plan"><summary>确认计划</summary><pre>{{ JSON.stringify(groupDetail.group.confirmed_plan, null, 2) }}</pre></details>
           <details v-if="groupDetail.group.generation_errors.length"><summary>生成失败详情</summary><p v-for="failure in groupDetail.group.generation_errors" :key="failure">{{ failure }}</p></details>
           <nav class="photo-navigation" aria-label="组内照片">
-            <button v-for="(photo, index) in groupDetail.photos" :key="photo.id" type="button" :aria-pressed="selected.id === photo.id" @click="act(() => selectPhoto(photo.id))">第 {{ index + 1 }} 张{{ search.trim() && matchingIds.includes(photo.id) ? ' · 匹配' : '' }}{{ photo.save_status === 'pending' ? ' · 待保存' : '' }}</button>
+            <button v-for="photo in groupDetail.photos" :key="photo.id" type="button" :aria-pressed="selected.id === photo.id" @click="act(() => selectPhoto(photo.id))">第 {{ photo.position + 1 }} 张{{ search.trim() && matchingIds.includes(photo.id) ? ' · 匹配' : '' }}{{ photo.save_status === 'pending' ? ' · 待保存' : '' }}</button>
           </nav>
         </fieldset>
         <div class="artwork-detail">
-          <img class="artwork-original" :src="fullImage" :alt="selected.title" />
+          <img v-if="fullImage" class="artwork-original" :src="fullImage" :alt="selected.title" />
+          <p v-else role="status">原图文件缺失；生成条件与元信息已保留。</p>
           <div class="artwork-info">
             <fieldset :disabled="busy">
               <label>标题 <input v-model="title" maxlength="200" /></label>
@@ -190,9 +198,10 @@ function reuse() {
               <div class="artwork-actions">
                 <button v-if="selected.save_status === 'pending'" type="button" @click="act(savePhoto)">重试保存此图</button>
                 <button v-if="!selected.deleted" type="button" :disabled="generationPending || selected.save_status === 'pending'" @click="reuse">复用创作</button>
-                <button type="button" @click="act(async () => { if (await exportArtwork(selected!.id, includeNotes)) notice = '已导出' })">导出此图</button>
+                <button type="button" :disabled="!fullImage" @click="act(async () => { if (await exportArtwork(selected!.id, includeNotes)) notice = '已导出' })">导出此图</button>
+                <button v-if="!selected.deleted && selected.save_status !== 'pending'" type="button" :disabled="!fullImage || groupDetail?.group.cover_id === selected.id" @click="act(async () => { groupDetail!.group = await setGroupCover(groupDetail!.group.id, selected!.id); await load() })">设为组封面</button>
                 <button type="button" :disabled="selected.save_status === 'pending'" :aria-pressed="selected.favorite" @click="act(() => update({ favorite: !selected!.favorite }))">{{ selected.favorite ? '取消收藏此图' : '收藏此图' }}</button>
-                <button v-if="!selected.deleted" type="button" :disabled="selected.save_status === 'pending'" @click="act(async () => { await update({ deleted: true }); detail?.close() })">删除此图</button>
+                <button v-if="!selected.deleted" type="button" :disabled="generationPending || selected.save_status === 'pending'" @click="act(async () => { await update({ deleted: true }); detail?.close() })">删除此图</button>
                 <template v-else>
                   <button type="button" @click="act(async () => { await update({ deleted: false }); detail?.close() })">恢复此图</button>
                   <button type="button" @click="confirmPurge = true">永久删除此图</button>

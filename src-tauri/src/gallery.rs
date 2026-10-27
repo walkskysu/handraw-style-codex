@@ -5,7 +5,6 @@ use image::{GenericImageView, ImageFormat, ImageReader, Limits};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
     fs,
     io::{Cursor, Write},
     path::{Component, Path, PathBuf},
@@ -15,6 +14,12 @@ type Result<T> = std::result::Result<T, String>;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Artwork {
+    #[serde(default = "available")]
+    pub availability: String,
+    #[serde(default)]
+    pub generation_item_id: Option<String>,
+    #[serde(default = "metadata_version")]
+    pub metadata_version: u32,
     pub id: String,
     #[serde(default)]
     pub group_id: String,
@@ -44,6 +49,14 @@ pub struct Artwork {
 fn saved_status() -> String {
     "saved".into()
 }
+fn metadata_version() -> u32 {
+    1
+}
+fn available() -> String {
+    "available".into()
+}
+// Relations are read from columns; metadata is the immutable generation snapshot plus mirrors.
+const RECORD: &str = "json_set(metadata,'$.group_id',group_id,'$.position',position,'$.generation_item_id',generation_item_id,'$.availability',availability)";
 
 pub struct PendingArtwork {
     pub artwork: Artwork,
@@ -82,6 +95,9 @@ impl PendingArtwork {
         let id = uuid::Uuid::new_v4().to_string();
         Ok(Self {
             artwork: Artwork {
+                availability: available(),
+                generation_item_id: None,
+                metadata_version: 1,
                 group_id: id.clone(),
                 position: 0,
                 save_status: "saved".into(),
@@ -131,11 +147,8 @@ impl Store {
         let db = Connection::open(root.join("gallery.db")).map_err(|e| e.to_string())?;
         db.busy_timeout(std::time::Duration::from_secs(5))
             .map_err(|e| e.to_string())?;
-        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
-            CREATE TABLE IF NOT EXISTS artworks (
-                id TEXT PRIMARY KEY, title TEXT NOT NULL, prompt TEXT NOT NULL,
-                created_at TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0,
-                deleted INTEGER NOT NULL DEFAULT 0, metadata TEXT NOT NULL);
+        crate::migrations::migrate(&db, &root)?;
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
             CREATE INDEX IF NOT EXISTS gallery_order ON artworks(deleted, created_at DESC, id DESC);")
             .map_err(|e| e.to_string())?;
         for folder in ["images", "thumbnails", "staging"] {
@@ -146,8 +159,8 @@ impl Store {
             db,
             _lock: lock,
         };
+        store.recover_jobs()?;
         store.recover()?;
-        store.migrate_groups()?;
         Ok(store)
     }
 
@@ -176,7 +189,7 @@ impl Store {
     pub(super) fn all(&self) -> Result<Vec<Artwork>> {
         let mut query = self
             .db
-            .prepare("SELECT metadata FROM artworks")
+            .prepare(&format!("SELECT {RECORD} FROM artworks"))
             .map_err(|e| e.to_string())?;
         let rows = query
             .query_map([], |r| r.get::<_, String>(0))
@@ -188,25 +201,77 @@ impl Store {
     }
 
     fn recover(&self) -> Result<()> {
-        let mut referenced = HashSet::new();
         for artwork in self.all()? {
             let image = self.path(&artwork.image_path)?;
             let thumbnail = self.path(&artwork.thumbnail_path)?;
-            if image.is_file() && thumbnail.is_file() {
-                referenced.insert(image);
-                referenced.insert(thumbnail);
-            } else {
-                self.db
-                    .execute("DELETE FROM artworks WHERE id=?", [&artwork.id])
-                    .map_err(|e| e.to_string())?;
+            if image.is_file() && !thumbnail.is_file() {
+                if let Ok(decoded) = self.bytes(&artwork).and_then(|b| decode(&b)) {
+                    let mut bytes = Cursor::new(Vec::new());
+                    decoded
+                        .thumbnail(480, 480)
+                        .write_to(&mut bytes, ImageFormat::WebP)
+                        .map_err(|e| e.to_string())?;
+                    self.persist(&thumbnail, bytes.get_ref())?;
+                }
+            }
+            self.db
+                .execute(
+                    "UPDATE artworks SET availability=? WHERE id=?",
+                    params![
+                        if image.is_file() {
+                            "available"
+                        } else {
+                            "missing"
+                        },
+                        artwork.id
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        // Unknown files are retained. They can be the only surviving result of a failed commit.
+        Ok(())
+    }
+
+    pub fn recovery_notices(&self) -> Result<Vec<String>> {
+        let mut known = std::collections::HashSet::new();
+        for artwork in self.all()? {
+            known.insert(artwork.image_path);
+            known.insert(artwork.thumbnail_path);
+        }
+        for attempt in self.records::<crate::jobs::Attempt>("generation_attempts")? {
+            known.insert(attempt.staging_path);
+            known.insert(format!("staging/{}.json", attempt.id));
+        }
+        let mut unrecognized = 0;
+        for folder in ["images", "thumbnails", "staging"] {
+            for entry in fs::read_dir(self.path(folder)?).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
+                    continue;
+                }
+                if !known.contains(&format!("{folder}/{}", entry.file_name().to_string_lossy())) {
+                    unrecognized += 1;
+                }
             }
         }
-        // Files are written before the SQLite commit. Unreferenced files (including staging)
-        // left by interruption are removed on startup; no incomplete card becomes visible.
-        for folder in ["images", "thumbnails", "staging"] {
-            clean_unreferenced(&self.path(folder)?, &referenced)?;
+        let missing: i64 = self
+            .db
+            .query_row(
+                "SELECT count(*) FROM artworks WHERE availability='missing'",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        let mut notices = vec![];
+        if unrecognized > 0 {
+            notices.push(format!("发现 {unrecognized} 个无法确认归属的文件，已原地保留、隔离于普通图库，未自动清理。请备份完整图库目录后检查。"));
         }
-        Ok(())
+        if missing > 0 {
+            notices.push(format!(
+                "{missing} 张原图文件缺失；元信息已保留，可从原有备份恢复文件。"
+            ));
+        }
+        Ok(notices)
     }
 
     pub fn save(&self, pending: &PendingArtwork) -> Result<Artwork> {
@@ -219,7 +284,11 @@ impl Store {
             )
             .map_err(|e| e.to_string())?;
         if exists {
-            return self.get(&pending.artwork.id);
+            let saved = self.get(&pending.artwork.id)?;
+            if self.bytes(&saved)? != pending.bytes {
+                return Err("已有图片与本次结果不同，拒绝覆盖".into());
+            }
+            return Ok(saved);
         }
         self.ensure_group(&pending.artwork)?;
         let image = decode(&pending.bytes)?;
@@ -230,6 +299,8 @@ impl Store {
             .map_err(|e| e.to_string())?;
         let original = self.path(&pending.artwork.image_path)?;
         let thumb = self.path(&pending.artwork.thumbnail_path)?;
+        let had_original = original.exists();
+        let had_thumbnail = thumb.exists();
         fs::create_dir_all(original.parent().ok_or("缺少图片目录")?).map_err(|e| e.to_string())?;
         let result = (|| {
             self.persist(&original, &pending.bytes)?;
@@ -241,13 +312,24 @@ impl Store {
             Ok(pending.artwork.clone())
         })();
         if result.is_err() {
-            let _ = fs::remove_file(original);
-            let _ = fs::remove_file(thumb);
+            // Never remove a pre-existing (possibly quarantined) file after a conflict.
+            if !had_original {
+                let _ = fs::remove_file(original);
+            }
+            if !had_thumbnail {
+                let _ = fs::remove_file(thumb);
+            }
         }
         result
     }
 
-    fn persist(&self, destination: &Path, bytes: &[u8]) -> Result<()> {
+    pub(super) fn persist(&self, destination: &Path, bytes: &[u8]) -> Result<()> {
+        if destination.exists() {
+            if fs::read(destination).map_err(|e| e.to_string())? == bytes {
+                return Ok(());
+            }
+            return Err("目标文件已有不同内容，拒绝覆盖".into());
+        }
         let mut file =
             tempfile::NamedTempFile::new_in(self.path("staging")?).map_err(|e| e.to_string())?;
         file.write_all(bytes)
@@ -261,9 +343,11 @@ impl Store {
     pub fn get(&self, id: &str) -> Result<Artwork> {
         let json: String = self
             .db
-            .query_row("SELECT metadata FROM artworks WHERE id=?", [id], |r| {
-                r.get(0)
-            })
+            .query_row(
+                &format!("SELECT {RECORD} FROM artworks WHERE id=?"),
+                [id],
+                |r| r.get(0),
+            )
             .map_err(|_| "作品不存在或已永久删除".to_string())?;
         serde_json::from_str(&json).map_err(|e| e.to_string())
     }
@@ -296,6 +380,9 @@ impl Store {
             return Err("标题需为 1–200 字；最多 30 个标签，每个不超过 80 字。".into());
         }
         let mut a = self.get(id)?;
+        if a.deleted != deleted {
+            self.assert_group_idle(&a.group_id)?;
+        }
         let restoring = a.deleted && !deleted;
         a.title = title.trim().into();
         a.tags = tags;
@@ -324,6 +411,7 @@ impl Store {
 
     pub fn purge(&self, id: &str) -> Result<()> {
         let a = self.get(id)?;
+        self.assert_group_idle(&a.group_id)?;
         if !a.deleted {
             return Err("请先将作品移入最近删除。".into());
         }
@@ -512,7 +600,7 @@ mod tests {
     }
 
     #[test]
-    fn startup_cleans_interrupted_writes_and_missing_file_records_but_preserves_trash() {
+    fn startup_preserves_unknown_files_missing_metadata_and_trash() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path().into()).unwrap();
         let good = store.save(&pending("kept")).unwrap();
@@ -528,8 +616,17 @@ mod tests {
         assert!(Store::open(dir.path().into()).is_err());
         drop(store);
         let reopened = Store::open(dir.path().into()).unwrap();
-        assert!(reopened.get(&missing.id).is_err());
-        assert!(!dir.path().join(&missing.thumbnail_path).exists());
+        assert!(reopened.get(&missing.id).is_ok());
+        assert!(dir.path().join(&missing.thumbnail_path).exists());
+        let availability: String = reopened
+            .db
+            .query_row(
+                "SELECT availability FROM artworks WHERE id=?",
+                [&missing.id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(availability, "missing");
         assert_eq!(list(&reopened, "", false, true, 1).unwrap().total, 1);
         assert!(reopened.image(&good.id).is_ok());
         for path in [
@@ -537,7 +634,7 @@ mod tests {
             "images/orphan.png",
             "thumbnails/orphan.webp",
         ] {
-            assert!(!dir.path().join(path).exists());
+            assert!(dir.path().join(path).exists());
         }
     }
 
@@ -556,22 +653,6 @@ mod tests {
             assert!(store.path(path).is_err());
         }
     }
-}
-
-fn clean_unreferenced(directory: &Path, referenced: &HashSet<PathBuf>) -> Result<()> {
-    for entry in fs::read_dir(directory).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let kind = entry.file_type().map_err(|e| e.to_string())?;
-        if kind.is_symlink() {
-            continue;
-        }
-        if kind.is_dir() {
-            clean_unreferenced(&entry.path(), referenced)?;
-        } else if kind.is_file() && !referenced.contains(&entry.path()) {
-            fs::remove_file(entry.path()).map_err(|e| e.to_string())?;
-        }
-    }
-    Ok(())
 }
 
 pub fn export_to(path: &Path, bytes: &[u8], artwork: &Artwork, include_notes: bool) -> Result<()> {
