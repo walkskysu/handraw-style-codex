@@ -1,362 +1,149 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import * as core from '@tauri-apps/api/core'
-import { clearMocks, mockIPC as installIPC } from '@tauri-apps/api/mocks'
+import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
 import App from '../src/App.vue'
+import type { Draft, Item, JobSnapshot, Library, Notice, Plan } from '../src/services/creation'
+import { acceptSnapshot } from '../src/services/creation'
 import { generationOptions } from '../src/services/generationOptions'
-
 vi.mock('@tauri-apps/api/core', { spy: true })
+const events = vi.hoisted(() => ({ change: undefined as undefined | ((event: { payload: Notice }) => void) }))
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, fn: typeof events.change) => { if (name === 'creation-changed') events.change = fn; return () => {} }) }))
 enableAutoUnmount(afterEach)
-afterEach(() => { clearMocks(); vi.unstubAllGlobals() })
-const image = 'data:image/png;base64,aW1hZ2U='
-// Keep generation scenarios concise while exercising the structured desktop response.
-const mockIPC = (callback: Parameters<typeof installIPC>[0]) => installIPC(async (...args) => {
-  const result = await callback(...args)
-  return typeof result === 'string' && result.startsWith('data:image/')
-    ? { group_id: 'generated-group', photos: [{ id: 'generated-artwork', image: result, save_error: null }], expected_count: 1, generation_errors: [] } : (result && typeof result === 'object' && 'save_error' in result ? { group_id: 'generated-group', photos: [result], expected_count: 1, generation_errors: [] } : result)
-})
-
-// jsdom does not implement the native dialog API. Model its open/close lifecycle;
-// focus trapping and Escape dismissal remain browser/WebView responsibilities.
-const showModal = vi.fn(function (this: HTMLDialogElement) { this.open = true })
-beforeAll(() => {
+beforeEach(() => {
+  localStorage.clear(); vi.spyOn(core, 'isTauri').mockReturnValue(true)
   Object.defineProperties(HTMLDialogElement.prototype, {
-    showModal: { configurable: true, value: showModal },
-    close: { configurable: true, value: function (this: HTMLDialogElement) {
-      if (!this.open) return
-      this.open = false
-      this.dispatchEvent(new Event('close'))
-    } },
+    showModal: { configurable: true, value: function (this: HTMLDialogElement) { this.open = true } },
+    close: { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) } },
   })
 })
-afterAll(() => {
-  Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
-  Reflect.deleteProperty(HTMLDialogElement.prototype, 'close')
-})
-
-describe('image generation workspace', () => {
-  it('holds an update until a generated artwork is saved and blocks new generations while queued', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    let finishGeneration!: (value: unknown) => void
-    const ipc = vi.fn((cmd: string) => {
-      if (cmd === 'generate_image') return new Promise(resolve => { finishGeneration = resolve })
-      if (cmd === 'update_about') return { current_version: '0.2.4', install_error: null }
-      if (cmd === 'update_check') return { version: '0.3.0', notes: '更新说明' }
-      return undefined
-    })
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    const click = async (label: string) => {
-      await wrapper.findAll('button').find(b => b.text() === label)!.trigger('click')
-      await flushPromises()
+afterEach(() => { clearMocks(); vi.unstubAllGlobals(); document.body.innerHTML = ''; events.change = undefined })
+const image = 'data:image/png;base64,aW1hZ2U='
+const visual = { style: null, layout: null, color: null, catalog_version: 'catalog' }
+const button = (w: ReturnType<typeof mount>, text: string) => w.findAll('button').find(b => b.text() === text)!
+function backend() {
+  const data: Library = { drafts: [], plans: [], planning_jobs: [], jobs: [] }
+  const jobs: Record<string, JobSnapshot> = {}
+  let serial = 0, failPlan = false
+  const ipc = vi.fn(async (cmd: string, args: any) => {
+    if (cmd === 'job_list') return structuredClone(data)
+    if (cmd === 'draft_update') {
+      const input = args.input, old = data.drafts.find(d => d.id === input.id)
+      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot: visual, requested_count: input.requested_count, input_revision: old ? old.input_revision + (old.prompt !== input.prompt ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: 'now' }
+      data.drafts = [d, ...data.drafts.filter(x => x.id !== d.id)]; return structuredClone(d)
     }
-    await wrapper.get('textarea').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await click('设置')
-    await click('下载更新')
-    await click('重启并安装')
-    expect(ipc.mock.calls.some(([cmd]) => cmd === 'update_install')).toBe(false)
-    finishGeneration({ id: 'pending-art', image, save_error: '磁盘空间不足' })
-    await flushPromises()
-    expect(ipc.mock.calls.some(([cmd]) => cmd === 'update_install')).toBe(false)
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await wrapper.get('form').trigger('submit')
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'generate_image')).toHaveLength(1)
-    await wrapper.get('[aria-label="关闭设置"]').trigger('click')
-    await click('重试保存')
-    expect(ipc.mock.calls.filter(([cmd]) => cmd === 'update_install')).toHaveLength(1)
-    const commands = ipc.mock.calls.map(([cmd]) => cmd)
-    expect(commands.indexOf('gallery_retry')).toBeLessThan(commands.indexOf('update_install'))
-  })
-
-  it('keeps selections across tabs and search, and locates a selected card from the left panel', async () => {
-    const wrapper = mount(App, { attachTo: document.body })
-    const selected = generationOptions.style.at(-1)!
-    await wrapper.get('#catalog-search').setValue(selected.id)
-    await wrapper.get(`[data-option="${selected.id}"]`).trigger('click')
-    const summary = wrapper.get('[data-selection="style"]')
-    expect(summary.text()).toContain(selected.name)
-    expect(summary.get('img').attributes('src')).toBe(selected.image)
-    await wrapper.get('#color-tab').trigger('click')
-    expect(wrapper.get('#color-tab').attributes('aria-selected')).toBe('true')
-    await wrapper.get('#catalog-search').setValue('')
-    await wrapper.get('[data-option="C-01"]').trigger('click')
-    await wrapper.get('#catalog-search').setValue('no matches')
-    expect(summary.text()).toContain(selected.name)
-    await summary.get('.selection-link').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('#style-tab').attributes('aria-selected')).toBe('true')
-    expect(document.activeElement).toBe(wrapper.get('#style-tab').element)
-    expect(wrapper.get<HTMLInputElement>('#catalog-search').element.value).toBe('')
-    expect(wrapper.get(`[data-option="${selected.id}"]`).attributes('aria-pressed')).toBe('true')
-    expect(wrapper.findAll('.option-card')).toHaveLength(generationOptions.style.length)
-    await summary.get('.clear-selection').trigger('click')
-    expect(summary.text()).toContain('自由生成')
-    expect(summary.find('img').exists()).toBe(false)
-    expect(wrapper.get(`[data-option="${selected.id}"]`).attributes('aria-pressed')).toBe('false')
-    expect(wrapper.get('[data-selection="color"]').text()).toContain(generationOptions.color[0]!.name)
-  })
-
-  it('supports arrow, Home and End keys in the category tabs', async () => {
-    const wrapper = mount(App, { attachTo: document.body })
-    for (const [key, category] of [['ArrowRight', 'layout'], ['End', 'color'], ['ArrowRight', 'style'], ['ArrowLeft', 'color'], ['Home', 'style']]) {
-      await wrapper.get('.catalog-tabs').trigger('keydown', { key })
-      expect(wrapper.get(`#${category}-tab`).attributes('aria-selected')).toBe('true')
-      expect(document.activeElement).toBe(wrapper.get(`#${category}-tab`).element)
-      expect(wrapper.findAll('[role="tab"][tabindex="0"]')).toHaveLength(1)
-      expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(`${category}-tab`)
+    if (cmd === 'plan_create') {
+      const d = data.drafts.find(d => d.id === args.draftId)!, id = `planning-${++serial}`
+      if (failPlan) { data.planning_jobs.unshift({ id, draft_id: d.id, status: 'failed', revision: 2, error: '规划失败', output_plan_id: null }); return id }
+      const p: Plan = { id: `plan-${++serial}`, draft_id: d.id, version: data.plans.filter(p => p.draft_id === d.id).length + 1, input_revision: d.input_revision, input_hash: 'input', content_hash: 'digest', snapshot: visual, original_prompt: d.prompt, confirmed_at: null, content: { title: '猫咪计划', goal: '不同姿态', audience: '初学者', kind: 'variants', visual: '水彩', dimensions: '1:1', verification: '未核实', change_summary: d.feedback_draft, items: Array.from({ length: d.requested_count ?? 3 }, (_, position) => ({ id: `entry-${position}`, position, title: `猫 ${position + 1}`, copy: '喵', description: '窗边', requirements: '水彩' })) } }
+      d.current_plan_id = p.id; d.feedback_draft = ''; data.plans.push(p)
+      data.planning_jobs.unshift({ id, draft_id: d.id, status: 'completed', revision: 2, error: null, output_plan_id: p.id }); return id
     }
-  })
-
-  it('prioritizes the catalog and preserves the preview and selections across narrow and wide layouts', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    mockIPC(() => image)
-    let resize!: (event: { matches: boolean }) => void
-    const removeEventListener = vi.fn()
-    vi.stubGlobal('matchMedia', vi.fn(() => ({
-      matches: true,
-      addEventListener: (_event: string, listener: typeof resize) => { resize = listener },
-      removeEventListener,
-    })))
-    const wrapper = mount(App, { attachTo: document.body })
-    await nextTick()
-    const dialog = wrapper.get<HTMLDialogElement>('#preview-dialog')
-    expect(wrapper.get('main').classes()).toContain('compact-workspace')
-    expect(dialog.element.open).toBe(false)
-    expect(wrapper.get('main').find('.catalog-panel').exists()).toBe(true)
-    expect(wrapper.get('main').find('.preview-panel').exists()).toBe(false)
-    await wrapper.get('[data-option="FA-001"]').trigger('click')
-    await wrapper.get('textarea').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    const opener = wrapper.get('.open-preview')
-    expect(opener.text()).toContain('已完成')
-    await opener.trigger('click')
-    await flushPromises()
-    expect(dialog.element.open).toBe(true)
-    expect(opener.attributes('aria-expanded')).toBe('true')
-    expect(dialog.get('.image-preview img').attributes('src')).toBe(image)
-    await dialog.get('.close-preview').trigger('click')
-    expect(dialog.element.open).toBe(false)
-    expect(document.activeElement).toBe(opener.element)
-    await wrapper.get('[data-selection="style"] .selection-link').trigger('click')
-    await flushPromises()
-    expect(dialog.element.open).toBe(false)
-    expect(wrapper.get('main [data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
-    await opener.trigger('click')
-    resize({ matches: false })
-    await flushPromises()
-    expect(dialog.element.open).toBe(false)
-    expect(wrapper.get('main .catalog-panel [data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('main .image-preview img').attributes('src')).toBe(image)
-    resize({ matches: true })
-    await flushPromises()
-    expect(dialog.element.open).toBe(false)
-    await wrapper.get('.open-preview').trigger('click')
-    await flushPromises()
-    expect(dialog.get('.image-preview img').attributes('src')).toBe(image)
-    expect(dialog.get('figcaption').text()).toBe('小猫')
-    // Native Escape emits close; jsdom models the same lifecycle here.
-    dialog.element.close()
-    await nextTick()
-    expect(wrapper.get('.open-preview').attributes('aria-expanded')).toBe('false')
-    wrapper.unmount()
-    expect(removeEventListener).toHaveBeenCalledWith('change', resize)
-  })
-
-  it('submits all three selections, preserves them on failure, and allows independent clearing', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const ipc = vi.fn().mockRejectedValueOnce('请重试').mockResolvedValueOnce(image)
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('textarea').setValue('小猫')
-    for (const [category, id] of [['style', 'FH-044'], ['layout', 'EC-024'], ['color', 'C-36']]) {
-      await wrapper.get(`#${category}-tab`).trigger('click')
-      await wrapper.get('#catalog-search').setValue(id)
-      await wrapper.get(`[data-option="${id}"]`).trigger('click')
+    if (cmd === 'generation_start_quick' || cmd === 'plan_confirm_and_start') {
+      const d = data.drafts.find(d => d.id === args.draftId)!, p = data.plans.find(p => p.id === args.planId) ?? null, id = `job-${++serial}`
+      const items: Item[] = Array.from({ length: p?.content.items.length ?? 1 }, (_, position) => ({ id: `image-${id}-${position}`, job_id: id, position, title: `猫 ${position + 1}`, prompt: `画面 ${position + 1}`, generation_status: 'queued', save_status: 'none', attempt_no: 0, attempt_id: null, artwork_id: null, error: null }))
+      if (p) p.confirmed_at = 'now'
+      const job: JobSnapshot = { id, group_id: `group-${id}`, draft_id: d.id, plan_id: p?.id ?? null, mode: d.mode, status: 'running', revision: 1, expected_count: items.length, updated_at: 'now', items, plan: p, generated_count: 0, saved_count: 0, available_count: 0, failed_count: 0, pending_save_count: 0 }
+      jobs[id] = job; data.jobs.unshift(job); return structuredClone(job)
     }
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.findAll('fieldset').every((field) => field.attributes('disabled') !== undefined)).toBe(true)
-    await flushPromises()
-    expect(ipc).toHaveBeenNthCalledWith(1, 'generate_image', {
-      prompt: '小猫', count: 1, selections: { style: 'FH-044', layout: 'EC-024', color: 'C-36' },
-    })
-    expect(wrapper.get('[data-selection="style"] img').attributes('src')).toBeTruthy()
-    await wrapper.get('[data-selection="layout"] .clear-selection').trigger('click')
-    expect(wrapper.get('[data-selection="layout"]').text()).toContain('未选择')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(ipc).toHaveBeenNthCalledWith(2, 'generate_image', {
-      prompt: '小猫', count: 1, selections: { style: 'FH-044', color: 'C-36' },
-    })
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
+    if (cmd === 'job_get') return structuredClone(jobs[args.id])
+    if (cmd === 'generation_item_image') return image + args.itemId
+    if (cmd === 'generation_stop') { const j = jobs[args.id]!; j.status = 'stopping'; j.revision++; return }
+    if (cmd === 'generation_retry_save') {
+      const j = Object.values(jobs).find(j => j.items.some(i => i.id === args.itemId))!
+      j.items.find(i => i.id === args.itemId)!.save_status = 'saved'; j.saved_count++; j.pending_save_count--; j.revision++
+      if (j.saved_count === j.expected_count) j.status = 'completed'
+      return
+    }
+    if (cmd === 'gallery_export') return true
+    if (cmd === 'gallery_list') return { items: [], total: 0, page: 1, photo_total: 0 }
+    if (cmd === 'update_about') return { current_version: '0.2.4', install_error: null }
+    if (cmd === 'update_check') return null
+    throw new Error(`Unexpected ${cmd}`)
   })
-
-  it('shows an honest browser preview with generation disabled', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(false)
-    const ipc = vi.fn()
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    expect(wrapper.get('.mode-badge').text()).toBe('浏览器预览')
-    expect(wrapper.get('.preview-hint').text()).toContain('桌面应用')
-    await wrapper.get('textarea').setValue('小猫')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await wrapper.get('form').trigger('submit')
-    expect(ipc).not.toHaveBeenCalled()
-    expect(wrapper.find('.image-preview img').exists()).toBe(false)
+  mockIPC(ipc)
+  async function changed(j: JobSnapshot) { j.revision++; events.change?.({ payload: { job_id: j.id, revision: j.revision, event_type: 'item_saved' } }); await flushPromises() }
+  return { data, jobs, ipc, changed, failPlan: () => { failPlan = true } }
+}
+async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
+describe('persistent two-mode workspace', () => {
+  it('quick creates one image without planning, prevents duplicates and survives page changes', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('请画十二张猫'); await w.get('form').trigger('submit'); await flushPromises()
+    expect(b.ipc.mock.calls.filter(([c]) => c === 'plan_create')).toHaveLength(0); expect(b.data.jobs[0]!.expected_count).toBe(1)
+    await w.get('form').trigger('submit'); await flushPromises()
+    expect(b.ipc.mock.calls.filter(([c]) => c === 'generation_start_quick')).toHaveLength(1)
+    expect(button(w, '规划生成').attributes('disabled')).toBeDefined()
+    await button(w, '我的图库').trigger('click'); await flushPromises(); await button(w, '创作工作台').trigger('click'); await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('请画十二张猫'); expect(w.text()).toContain('已生成 0 / 1 张')
   })
-
-  it('rejects blank submissions and keeps the empty preview', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const ipc = vi.fn()
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('textarea').setValue(' \n ')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toContain('请先描述')
-    expect(ipc).not.toHaveBeenCalled()
-    expect(wrapper.find('.preview-placeholder').exists()).toBe(true)
+  it('requires explicit confirmation and preserves complete versions and failed feedback', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('三张猫'); await button(w, '规划生成').trigger('click'); await flushPromises(); await w.get('select').setValue(2)
+    expect(w.text()).toContain('本次按所选数量 2 张规划')
+    await w.get('form').trigger('submit'); await flushPromises(); expect(w.text()).toContain('第 1 版 · 共 2 张')
+    for (const feedback of ['加一只小猫', '减少文字']) {
+      await w.get('.plan-panel textarea').setValue(feedback); expect(button(w, '确认计划，生成 2 张').attributes('disabled')).toBeDefined()
+      await button(w, '按意见修改计划').trigger('click'); await flushPromises()
+    }
+    expect(b.data.plans).toHaveLength(3); expect(b.data.jobs).toHaveLength(0)
+    b.failPlan(); await w.get('.plan-panel textarea').setValue('保留失败反馈'); await button(w, '按意见修改计划').trigger('click'); await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('.plan-panel textarea').element.value).toBe('保留失败反馈'); expect(w.text()).toContain('第 3 版')
+    await w.get('.plan-panel textarea').setValue(''); await button(w, '确认计划，生成 2 张').trigger('click'); await flushPromises()
+    expect(b.data.jobs).toHaveLength(1); expect(w.findAll('[aria-label="任务照片"] button')).toHaveLength(2)
   })
-
-  it('prevents duplicate requests and displays the returned image and prompt', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    let resolveImage!: (result: string) => void
-    const ipc = vi.fn(() => new Promise<string>((resolve) => { resolveImage = resolve }))
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    expect(wrapper.get('.mode-badge').text()).toBe('桌面应用')
-    await wrapper.get('[data-option="FA-001"]').trigger('click')
-    await wrapper.get('textarea').setValue('  水彩小猫  ')
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('button[type="submit"]').text()).toBe('正在生成…')
-    expect(wrapper.get('textarea').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
-    expect(wrapper.get('[role="status"]').text()).toContain('请稍候')
-    expect(wrapper.get('.generation-status').text()).toBe('生成中')
-    expect(wrapper.get('.submitted-prompt').text()).toContain('水彩小猫')
-    const clear = wrapper.get('[data-selection="style"] .clear-selection')
-    expect(clear.attributes('disabled')).toBeDefined()
-    await clear.trigger('click')
-    await wrapper.get('[data-option="FA-002"]').trigger('click')
-    expect(wrapper.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
-    await wrapper.get('form').trigger('submit')
-    expect(ipc).toHaveBeenCalledTimes(1)
-    resolveImage(image)
-    await flushPromises()
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
-    expect(wrapper.get('.image-preview img').attributes('alt')).toBe('水彩小猫')
-    expect(wrapper.get('figcaption').text()).toBe('水彩小猫')
-    expect(wrapper.get('form').attributes('aria-busy')).toBe('false')
-    expect(wrapper.get('.generation-status').text()).toBe('已完成')
-    expect(wrapper.find('.submitted-prompt').exists()).toBe(false)
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    expect(showModal).not.toHaveBeenCalled()
+  it('blocks stale plans as soon as inputs change', async () => {
+    backend(); const w = await open()
+    await w.get('#prompt').setValue('猫'); await button(w, '规划生成').trigger('click'); await flushPromises(); await w.get('form').trigger('submit'); await flushPromises()
+    await w.get('#prompt').setValue('狗'); expect(button(w, '确认计划，生成 3 张').attributes('disabled')).toBeDefined(); expect(w.text()).toContain('输入或配置已变化')
   })
-
-  it('preserves the previous image on failure and replaces it after retry', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const replacement = 'data:image/png;base64,bmV3'
-    const ipc = vi.fn().mockResolvedValueOnce(image)
-      .mockRejectedValueOnce('Codex 执行失败，请检查登录后重试。')
-      .mockResolvedValueOnce(replacement)
-    mockIPC(ipc)
-    const wrapper = mount(App)
-    await wrapper.get('textarea').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    await wrapper.get('textarea').setValue('小狗')
-    await wrapper.get('form').trigger('submit')
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(image)
-    await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toContain('检查登录')
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').text()).toContain('检查登录')
-    expect(wrapper.find('#upgrade-hint').exists()).toBe(false)
-    expect(wrapper.get('figcaption').text()).toBe('小猫')
-    expect(wrapper.get('.generation-status').text()).toBe('生成失败')
-    expect(wrapper.get('.submitted-prompt').text()).toContain('小狗')
-    expect(wrapper.get('textarea').element.value).toBe('小狗')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-    await wrapper.get('.error-dialog button').trigger('click')
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(false)
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(false)
-    expect(wrapper.get('.image-preview img').attributes('src')).toBe(replacement)
-    expect(wrapper.get('figcaption').text()).toBe('小狗')
+  it('flushes unapplied feedback when switching modes and restores the independent plan draft', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('猫'); await button(w, '规划生成').trigger('click'); await flushPromises()
+    await w.get('form').trigger('submit'); await flushPromises()
+    await w.get('.plan-panel textarea').setValue('尚未应用的反馈')
+    await button(w, '快速生成').trigger('click'); await flushPromises()
+    expect(b.data.drafts.find(d => d.mode === 'planned')?.feedback_draft).toBe('尚未应用的反馈')
+    await button(w, '规划生成').trigger('click'); await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('.plan-panel textarea').element.value).toBe('尚未应用的反馈')
+    expect(b.data.jobs).toHaveLength(0)
   })
-
-  it('renders prompt and errors as text and handles image load failures', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const markup = '<img src=x onerror=alert(1)>'
-    mockIPC(vi.fn().mockRejectedValueOnce(markup).mockResolvedValueOnce(image))
-    const wrapper = mount(App)
-    await wrapper.get('textarea').setValue(markup)
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toBe(markup)
-    expect(wrapper.get('#error-detail').text()).toBe(markup)
-    expect(wrapper.find('.image-preview img').exists()).toBe(false)
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get('figcaption').text()).toBe(markup)
-    expect(wrapper.findAll('.image-preview img')).toHaveLength(1)
-    await wrapper.get('.image-preview img').trigger('error')
-    await flushPromises()
-    expect(wrapper.find('.image-preview img').exists()).toBe(false)
-    expect(wrapper.get('[role="alert"]').text()).toContain('图片无法显示')
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
-    expect(wrapper.get('#error-detail').text()).toContain('图片无法显示')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  it('previews the first result before later slots finish and preserves manual selection', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('猫'); await button(w, '规划生成').trigger('click'); await flushPromises(); await w.get('form').trigger('submit'); await flushPromises()
+    await button(w, '确认计划，生成 3 张').trigger('click'); await flushPromises(); const j = Object.values(b.jobs)[0]!
+    Object.assign(j.items[0]!, { generation_status: 'generated', save_status: 'saved', artwork_id: j.items[0]!.id }); j.saved_count = j.generated_count = 1; j.items[1]!.generation_status = 'generating'; await b.changed(j)
+    expect(w.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id); expect(w.text()).toContain('已生成 1 / 3 张')
+    await w.get('[aria-label="任务照片"] button').trigger('click')
+    Object.assign(j.items[2]!, { generation_status: 'generated', save_status: 'saved', artwork_id: j.items[2]!.id }); j.saved_count = j.generated_count = 2; await b.changed(j)
+    expect(w.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id)
+    await w.get('[aria-label="任务照片"]').trigger('keydown', { key: 'ArrowRight' }); expect(w.find('.image-preview').exists()).toBe(false); expect(w.text()).toContain('第 2 张 · 生成中')
+    expect(w.findAll('button').some(b => b.text() === '导出此图')).toBe(false)
+    await button(w, '停止后续生成').trigger('click'); await flushPromises(); expect(w.text()).toContain('当前图片完成后停止')
   })
-
-  it('shows the requested upgrade command once for repeated CLI version errors and clears it on retry', async () => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    const diagnostic = 'ERROR: ' + JSON.stringify({
-      type: 'error', status: 400,
-      error: { type: 'invalid_request_error', message: "The 'gpt-6-astra' model requires a newer version of Codex. Please upgrade to the latest app or CLI and try again." },
-    })
-    const error = `Codex 执行失败。\n${diagnostic}\n${diagnostic}`
-    mockIPC(vi.fn().mockRejectedValueOnce(error).mockRejectedValueOnce('网络连接失败'))
-    const wrapper = mount(App, { attachTo: document.body })
-    await wrapper.get('textarea').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    const dialog = wrapper.get<HTMLDialogElement>('.error-dialog')
-    expect(dialog.element.open).toBe(true)
-    expect(showModal).toHaveBeenCalledTimes(1)
-    expect(dialog.attributes('role')).toBe('alertdialog')
-    expect(dialog.attributes('aria-labelledby')).toBe('error-title')
-    expect(dialog.attributes('aria-describedby')).toBe('upgrade-hint error-detail')
-    expect(dialog.get('#error-detail').text()).toBe(error)
-    expect(dialog.findAll('code')).toHaveLength(1)
-    expect(dialog.get('code').text()).toBe('npm.cmd install -g @openai/codex@latest')
-    await dialog.get('button').trigger('click')
-    expect(dialog.element.open).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('textarea').element)
-    expect(wrapper.get('textarea').element.value).toBe('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(dialog.element.open).toBe(true)
-    expect(showModal).toHaveBeenCalledTimes(2)
-    expect(dialog.find('#upgrade-hint').exists()).toBe(false)
-    expect(dialog.attributes('aria-describedby')).toBe('error-detail')
-    expect(dialog.get('#error-detail').text()).toBe('网络连接失败')
+  it('restores unfinished tasks and retries saving bytes without generating again', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('猫'); await w.get('form').trigger('submit'); await flushPromises(); const j = Object.values(b.jobs)[0]!
+    Object.assign(j.items[0]!, { generation_status: 'generated', save_status: 'save_failed', artwork_id: j.items[0]!.id, error: '磁盘已满' }); j.status = 'paused'; j.generated_count = j.pending_save_count = 1; await b.changed(j); w.unmount()
+    const restored = await open(); expect(restored.text()).toContain('磁盘已满'); expect(restored.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id)
+    await button(restored, '重试保存此图').trigger('click'); await flushPromises()
+    expect(b.ipc.mock.calls.filter(([c]) => c === 'generation_start_quick')).toHaveLength(1); expect(b.ipc).toHaveBeenCalledWith('generation_retry_save', { itemId: j.items[0]!.id }); expect(restored.text()).toContain('已保存 1 张')
   })
-
-  it.each([new Error('Codex 无法启动'), null, '   '])('opens a readable error dialog for non-string or empty failures (%#)', async (cause) => {
-    vi.spyOn(core, 'isTauri').mockReturnValue(true)
-    mockIPC(() => Promise.reject(cause))
-    const wrapper = mount(App)
-    await wrapper.get('textarea').setValue('小猫')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(wrapper.get<HTMLDialogElement>('.error-dialog').element.open).toBe(true)
-    expect(wrapper.get('#error-detail').text()).toBe(cause instanceof Error ? cause.message : '暂时无法生成图片，请再试一次。')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  it('preserves selections through modes and catalog keyboard navigation', async () => {
+    backend(); const w = await open()
+    await w.get('#prompt').setValue('猫'); await w.get('[data-option="FA-001"]').trigger('click'); await button(w, '规划生成').trigger('click'); await flushPromises(); await button(w, '快速生成').trigger('click')
+    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('猫'); expect(w.get('[data-selection="style"]').text()).toContain(generationOptions.style[0]!.name)
+    await w.get('.catalog-tabs').trigger('keydown', { key: 'ArrowRight' }); expect(w.get('#layout-tab').attributes('aria-selected')).toBe('true')
+    await w.get('[data-selection="style"] .selection-link').trigger('click'); await flushPromises(); expect(document.activeElement).toBe(w.get('#style-tab').element)
+    await w.get('[aria-label="清除风格选择"]').trigger('click'); expect(w.get('[data-selection="style"]').text()).toContain('自由生成')
+  })
+  it('disables browser generation without IPC', async () => {
+    vi.spyOn(core, 'isTauri').mockReturnValue(false); const ipc = vi.fn(); mockIPC(ipc); const w = await open()
+    await w.get('#prompt').setValue('猫'); await w.get('form').trigger('submit'); expect(w.get('button[type="submit"]').attributes('disabled')).toBeDefined(); expect(ipc).not.toHaveBeenCalled()
+  })
+  it('ignores regressive snapshots and accepts revision gaps as full state', () => {
+    const current = { id: 'job', revision: 4 } as JobSnapshot
+    expect(acceptSnapshot(current, { id: 'job', revision: 2 } as JobSnapshot)).toBe(current)
+    expect(acceptSnapshot(current, { id: 'job', revision: 9 } as JobSnapshot).revision).toBe(9)
   })
 })

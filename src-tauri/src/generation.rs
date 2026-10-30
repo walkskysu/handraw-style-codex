@@ -36,8 +36,26 @@ pub struct Output {
 }
 
 impl GenerationGuard {
+    pub fn plan(&self, prompt: &str) -> Result<String, String> {
+        let executable = find_codex()?;
+        let workspace = tempfile::Builder::new()
+            .prefix("handraw-plan-")
+            .tempdir()
+            .map_err(|e| e.to_string())?;
+        run_plan(
+            &mut planner_command(&executable),
+            workspace.path(),
+            prompt,
+            Duration::from_secs(180),
+        )
+    }
+
     pub fn generate(&self, prompt: &str, snapshot: &Snapshot) -> Result<Output, String> {
-        let prompt = validate_prompt(prompt)?;
+        // Planned prompts include frozen copy and common requirements, beyond the input limit.
+        let prompt = prompt.trim();
+        if prompt.is_empty() || prompt.len() > 128 * 1024 {
+            return Err("无效图片提示词".into());
+        }
         let description = apply_snapshot(prompt, snapshot);
         let executable = find_codex()?;
         let tool_version = codex_version(&executable);
@@ -52,6 +70,97 @@ impl GenerationGuard {
             tool_version,
         })
     }
+}
+
+// A fixed final-message file is the protocol; stdout is diagnostic output only.
+fn planner_command(executable: &Path) -> Command {
+    let mut command = Command::new(executable);
+    command.args([
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "--ignore-user-config",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--sandbox",
+        "read-only",
+        "--color",
+        "never",
+        "--config",
+        "features.shell_tool=false",
+        "--config",
+        "features.image_generation=false",
+        "--config",
+        "features.imagegenext=false",
+        "--config",
+        "features.multi_agent=false",
+        "--config",
+        "features.multi_agent_v2=false",
+        "--config",
+        "features.apps=false",
+        "--config",
+        "plugins._default.enabled=false",
+        "--config",
+        "mcp_servers={}",
+        "--config",
+        "web_search=disabled",
+        "--output-schema",
+        "schema.json",
+        "--output-last-message",
+        "plan.json",
+        "-",
+    ]);
+    hide_window(&mut command);
+    command
+}
+
+fn run_plan(
+    command: &mut Command,
+    workspace: &Path,
+    prompt: &str,
+    timeout: Duration,
+) -> Result<String, String> {
+    let output = workspace.join("plan.json");
+    let schema = workspace.join("schema.json");
+    fs::write(&schema, include_str!("plan-schema.json")).map_err(|e| e.to_string())?;
+    let mut input = tempfile::tempfile().map_err(|e| e.to_string())?;
+    input
+        .write_all(prompt.as_bytes())
+        .map_err(|e| e.to_string())?;
+    input.rewind().map_err(|e| e.to_string())?;
+    let diagnostics = tempfile::tempfile().map_err(|e| e.to_string())?;
+    command
+        .current_dir(workspace)
+        .stdin(Stdio::from(input))
+        .stdout(Stdio::from(
+            diagnostics.try_clone().map_err(|e| e.to_string())?,
+        ))
+        .stderr(Stdio::from(
+            diagnostics.try_clone().map_err(|e| e.to_string())?,
+        ));
+    let mut child = RunningChild(
+        command
+            .spawn()
+            .map_err(|e| format!("无法启动文字规划器：{e}"))?,
+    );
+    let start = Instant::now();
+    loop {
+        if let Some(status) = child.0.try_wait().map_err(|e| e.to_string())? {
+            if !status.success() {
+                return Err(format!("文字规划失败：{}", diagnostic_tail(diagnostics)));
+            }
+            break;
+        }
+        if start.elapsed() > timeout {
+            return Err("文字规划超过 3 分钟，已停止；原计划保留".into());
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    let meta = fs::symlink_metadata(&output).map_err(|e| format!("规划器未输出 JSON：{e}"))?;
+    if !meta.is_file() || meta.file_type().is_symlink() || meta.len() > 128 * 1024 {
+        return Err("无效规划输出文件".into());
+    }
+    fs::read_to_string(output).map_err(|e| e.to_string())
 }
 
 // Read only the explicit version output, never authentication or model configuration.
@@ -337,6 +446,11 @@ mod tests {
         std::io::stdin().read_to_string(&mut input).unwrap();
         fs::write("received.txt", input).unwrap();
         match case.as_str() {
+            "plan" => {
+                println!("This console line is not JSON and must never be parsed as a plan.");
+                fs::write("plan.json", r#"{"title":"文字计划"}"#).unwrap();
+            }
+            "plan_large" => fs::write("plan.json", vec![b'x'; 128 * 1024 + 1]).unwrap(),
             "success" => fs::write(OUTPUT_NAME, PNG).unwrap(),
             "failure" => {
                 eprintln!("Please run codex login");
@@ -345,6 +459,61 @@ mod tests {
             "missing" => println!("Image tool unavailable"),
             "timeout" => thread::sleep(Duration::from_secs(30)),
             _ => panic!("unknown fixture"),
+        }
+    }
+
+    #[test]
+    fn planner_uses_final_file_and_preserves_literal_input_without_images() {
+        let workspace = tempfile::tempdir().unwrap();
+        let prompt = "text only & echo injected > bad.txt";
+        let output = run_plan(
+            &mut fixture_command("plan"),
+            workspace.path(),
+            prompt,
+            Duration::from_secs(15),
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&output).unwrap()["title"],
+            "文字计划"
+        );
+        assert_eq!(
+            fs::read_to_string(workspace.path().join("received.txt")).unwrap(),
+            prompt
+        );
+        assert!(!workspace.path().join(OUTPUT_NAME).exists());
+        assert!(!workspace.path().join("bad.txt").exists());
+        let args: Vec<_> = planner_command(Path::new("codex"))
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        for required in [
+            "--ignore-user-config",
+            "features.image_generation=false",
+            "features.shell_tool=false",
+            "plugins._default.enabled=false",
+            "--output-schema",
+        ] {
+            assert!(args.iter().any(|a| a == required));
+        }
+    }
+
+    #[test]
+    fn planner_rejects_missing_large_failed_and_timed_out_output() {
+        for case in ["missing", "plan_large", "failure", "timeout"] {
+            let workspace = tempfile::tempdir().unwrap();
+            let timeout = if case == "timeout" {
+                Duration::from_millis(200)
+            } else {
+                Duration::from_secs(15)
+            };
+            assert!(run_plan(
+                &mut fixture_command(case),
+                workspace.path(),
+                "plan only",
+                timeout
+            )
+            .is_err());
         }
     }
 

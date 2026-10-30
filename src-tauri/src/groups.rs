@@ -41,6 +41,10 @@ pub fn export_group_to(
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PhotoGroup {
+    #[serde(default = "legacy_mode")]
+    pub mode: String,
+    #[serde(default)]
+    pub confirmed_plan: Option<serde_json::Value>,
     pub id: String,
     pub title: String,
     pub tags: Vec<String>,
@@ -63,6 +67,8 @@ pub struct PhotoGroup {
 impl PhotoGroup {
     pub fn new(prompt: String, snapshot: Snapshot, count: usize, source: Option<&Artwork>) -> Self {
         Self {
+            mode: "legacy".into(),
+            confirmed_plan: None,
             id: uuid::Uuid::new_v4().to_string(),
             title: prompt.chars().take(40).collect(),
             tags: vec![],
@@ -81,6 +87,10 @@ impl PhotoGroup {
             deleted_photo_ids: vec![],
         }
     }
+}
+
+fn legacy_mode() -> String {
+    "legacy".into()
 }
 
 #[derive(Serialize)]
@@ -107,6 +117,7 @@ pub struct GroupPage {
 pub struct GroupDetail {
     pub group: PhotoGroup,
     pub photos: Vec<Artwork>,
+    pub source_available: bool,
 }
 
 fn matches(search: &str, title: &str, prompt: &str, tags: &[String]) -> bool {
@@ -165,24 +176,6 @@ impl Store {
         Ok(())
     }
 
-    pub fn migrate_groups(&self) -> Result<()> {
-        let tx = self.db.unchecked_transaction().map_err(|e| e.to_string())?;
-        self.db.execute_batch("CREATE TABLE IF NOT EXISTS photo_groups(id TEXT PRIMARY KEY, metadata TEXT NOT NULL);").map_err(|e| e.to_string())?;
-        for mut a in self.all()? {
-            if a.group_id.is_empty() {
-                a.group_id = a.id.clone();
-                self.db
-                    .execute(
-                        "UPDATE artworks SET metadata=? WHERE id=?",
-                        params![serde_json::to_string(&a).map_err(|e| e.to_string())?, a.id],
-                    )
-                    .map_err(|e| e.to_string())?;
-            }
-            self.ensure_group(&a)?;
-        }
-        tx.commit().map_err(|e| e.to_string())
-    }
-
     pub fn group_detail(&self, id: &str, deleted: bool) -> Result<GroupDetail> {
         let mut group = self.group(id)?;
         let mut photos: Vec<_> = self
@@ -191,13 +184,35 @@ impl Store {
             .filter(|a| a.group_id == id && a.deleted == deleted)
             .collect();
         photos.sort_by(|a, b| a.position.cmp(&b.position).then(a.id.cmp(&b.id)));
-        if !photos
-            .iter()
-            .any(|a| Some(&a.id) == group.cover_id.as_ref())
-        {
-            group.cover_id = photos.first().map(|a| a.id.clone());
+        if !photos.iter().any(|a| {
+            Some(&a.id) == group.cover_id.as_ref()
+                && self.path(&a.image_path).is_ok_and(|p| p.is_file())
+        }) {
+            group.cover_id = photos
+                .iter()
+                .find(|a| self.path(&a.image_path).is_ok_and(|p| p.is_file()))
+                .map(|a| a.id.clone());
         }
-        Ok(GroupDetail { group, photos })
+        let source_available = group
+            .source_photo_id
+            .as_ref()
+            .is_some_and(|id| self.get(id).is_ok_and(|a| !a.deleted));
+        Ok(GroupDetail {
+            group,
+            photos,
+            source_available,
+        })
+    }
+
+    pub fn set_cover(&self, group_id: &str, photo_id: &str) -> Result<PhotoGroup> {
+        let mut group = self.group(group_id)?;
+        let photo = self.get(photo_id)?;
+        if photo.group_id != group_id || photo.deleted || !self.path(&photo.image_path)?.is_file() {
+            return Err("封面必须是本组可用的已保存图片".into());
+        }
+        group.cover_id = Some(photo_id.into());
+        self.put_group(&group)?;
+        Ok(group)
     }
 
     pub fn list_groups(
@@ -219,7 +234,10 @@ impl Store {
         let search = search.trim().to_lowercase();
         let all = self.all()?;
         let mut by_group: HashMap<&str, Vec<&Artwork>> = HashMap::new();
-        for photo in all.iter().filter(|a| a.deleted == deleted) {
+        for photo in all
+            .iter()
+            .filter(|a| a.deleted == deleted && self.path(&a.image_path).is_ok_and(|p| p.is_file()))
+        {
             by_group.entry(&photo.group_id).or_default().push(photo);
         }
         let mut candidates = vec![];
@@ -232,7 +250,7 @@ impl Store {
                 .iter()
                 .filter(|a| a.group_id == group.id && !deleted)
                 .collect();
-            if photos.is_empty() && unsaved.is_empty() {
+            if photos.is_empty() {
                 continue;
             }
             if favorite && !group.favorite {
@@ -329,6 +347,9 @@ impl Store {
         }
         let tx = self.db.unchecked_transaction().map_err(|e| e.to_string())?;
         let mut group = self.group(id)?;
+        if deleted != group.deleted {
+            self.assert_group_idle(id)?;
+        }
         if deleted != group.deleted || (deleted && !self.group_detail(id, false)?.photos.is_empty())
         {
             if deleted {
@@ -431,52 +452,6 @@ mod tests {
         store
             .list_groups(search, favorite, photo_favorite, deleted, 1, &[])
             .unwrap()
-    }
-
-    #[test]
-    fn migrates_each_legacy_photo_once_without_merging_or_changing_history() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = Store::open(dir.path().into()).unwrap();
-        let (_, photos) = create(&store, 2);
-        for (i, a) in photos.iter().enumerate() {
-            let a = store
-                .update(
-                    &a.id,
-                    format!("old title {i}"),
-                    vec!["tag".into()],
-                    true,
-                    i == 1,
-                )
-                .unwrap();
-            let mut legacy = serde_json::to_value(&a).unwrap();
-            for key in ["group_id", "position", "save_status"] {
-                legacy.as_object_mut().unwrap().remove(key);
-            }
-            store
-                .db
-                .execute(
-                    "UPDATE artworks SET metadata=? WHERE id=?",
-                    params![legacy.to_string(), a.id],
-                )
-                .unwrap();
-        }
-        store.db.execute_batch("DROP TABLE photo_groups").unwrap();
-        drop(store);
-        for _ in 0..2 {
-            let store = Store::open(dir.path().into()).unwrap();
-            for (i, a) in photos.iter().enumerate() {
-                let restored = store.get(&a.id).unwrap();
-                assert_eq!(restored.group_id, a.id);
-                assert_eq!(restored.submitted_prompt, a.submitted_prompt);
-                assert_eq!(restored.image_path, a.image_path);
-                assert_eq!(restored.title, format!("old title {i}"));
-                assert_eq!(restored.tags, vec!["tag"]);
-                assert!(restored.favorite && store.group(&a.id).unwrap().favorite);
-                assert_eq!(restored.deleted, i == 1);
-            }
-            assert_eq!(list(&store, "", false, false, false).total, 1);
-            assert_eq!(list(&store, "", false, false, true).total, 1);
-        }
     }
 
     #[test]
