@@ -4,8 +4,28 @@ import OptionPicker from '../src/components/OptionPicker.vue'
 import { generationOptions, optionCategories } from '../src/services/generationOptions'
 
 enableAutoUnmount(afterEach)
+afterEach(() => { Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView') })
 
 describe('scrollable image options', () => {
+  it('resets batch size for searches and categories without dropping a later selection', async () => {
+    const options = generationOptions.style
+    const wrapper = mount(OptionPicker, { props: { category: 'style', label: '风格', options, modelValue: options[70]!.id } })
+    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    await wrapper.get('.load-more').trigger('click')
+    expect(wrapper.findAll('.option-card')).toHaveLength(80)
+    expect(wrapper.get(`[data-option="${options[70]!.id}"]`).attributes('aria-pressed')).toBe('true')
+    await wrapper.get('input').setValue(options.at(-1)!.id)
+    expect(wrapper.findAll('.option-card')).toHaveLength(1)
+    expect(wrapper.get('.load-more').attributes('disabled')).toBeDefined()
+    await wrapper.get('input').setValue('')
+    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    await wrapper.vm.reveal(options[70]!.id)
+    expect(wrapper.findAll('.option-card')).toHaveLength(80)
+    expect(wrapper.get(`[data-option="${options[70]!.id}"]`).attributes('aria-pressed')).toBe('true')
+    await wrapper.setProps({ category: 'layout', options: generationOptions.layout })
+    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    expect(wrapper.props('modelValue')).toBe(options[70]!.id)
+  })
   it('returns scrolling to the start after searching, switching categories and revealing without a selection', async () => {
     const wrapper = mount(OptionPicker, { props: {
       category: 'style', label: '风格', options: generationOptions.style,
@@ -24,9 +44,11 @@ describe('scrollable image options', () => {
     expect(area.scrollTop).toBe(0)
   })
 
-  it.each(optionCategories)('shows every $label image in one list and reveals the last selection', async ({ key, label }) => {
+  it.each(optionCategories)('loads $label images in batches and reveals the last selection', async ({ key, label }) => {
     const options = generationOptions[key]
     const wrapper = mount(OptionPicker, { props: { category: key, label, options } })
+    expect(wrapper.findAll('.option-card')).toHaveLength(Math.min(40, options.length))
+    while (!wrapper.get<HTMLButtonElement>('.load-more').element.disabled) await wrapper.get('.load-more').trigger('click')
     const cards = wrapper.findAll('.option-card')
     expect(cards.map((card) => card.attributes('data-option'))).toEqual(options.map(({ id }) => id))
     expect(wrapper.find('nav').exists()).toBe(false)
@@ -40,15 +62,16 @@ describe('scrollable image options', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([last.id])
     await wrapper.setProps({ modelValue: last.id })
     expect(wrapper.get(`[data-option="${last.id}"]`).attributes('aria-pressed')).toBe('true')
-    // Keep the selected card mounted while filtering so its native scroll call can be observed.
+    // Revealing a later batch can remount the selected card after clearing the filter.
     await wrapper.get('input').setValue(last.id)
     expect(wrapper.props('modelValue')).toBe(last.id)
     const scrollIntoView = vi.fn()
-    wrapper.get<HTMLElement>(`[data-option="${last.id}"]`).element.scrollIntoView = scrollIntoView
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
     await wrapper.vm.reveal(last.id)
     expect(wrapper.get<HTMLInputElement>('input').element.value).toBe('')
     expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    expect(scrollIntoView.mock.contexts[0]).toBe(wrapper.get(`[data-option="${last.id}"]`).element)
     expect(wrapper.get(`[data-option="${last.id}"]`).attributes('aria-pressed')).toBe('true')
   })
 
@@ -64,7 +87,7 @@ describe('scrollable image options', () => {
     expect(wrapper.findAll('.option-card')).toHaveLength(0)
     expect(wrapper.text()).toContain('没有匹配')
     await wrapper.get('input').setValue('')
-    expect(wrapper.findAll('.option-card')).toHaveLength(generationOptions.style.length)
+    expect(wrapper.findAll('.option-card')).toHaveLength(40)
     expect(wrapper.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
   })
 

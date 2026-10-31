@@ -111,7 +111,7 @@ onBeforeUnmount(() => { clearTimeout(startupTimer); clearTimeout(reminderTimer) 
       <button type="button" aria-label="关闭设置" @click="dialog?.close()">×</button>
     </div>
     <section aria-labelledby="about-title">
-      <h3 id="about-title">关于 Handraw</h3>
+      <h3 id="about-title">关于 IdeaCanvas</h3>
       <p>当前版本：{{ version || (desktop ? '读取中…' : '浏览器预览') }}</p>
       <template v-if="desktop">
         <p v-if="release">发现新版本：{{ release.version }}</p>
