@@ -34,6 +34,7 @@ pub struct DraftInput {
     prompt: String,
     selections: options::Selections,
     reuse_id: Option<String>,
+    reuse_job_id: Option<String>,
     requested_count: Option<usize>,
     feedback: String,
     input_revision: Option<u64>,
@@ -44,12 +45,22 @@ pub fn draft_update(app: tauri::AppHandle, input: DraftInput) -> Result<Draft> {
         let store = s.store(&app)?;
         let previous = input.reuse_id.map(|id| store.get(&id)).transpose()?;
         let old = input.id.as_ref().map(|id| store.draft(id)).transpose()?;
+        let copied = input
+            .reuse_job_id
+            .as_ref()
+            .map(|id| store.snapshot_job(id))
+            .transpose()?;
         let snapshot = options::snapshot(
             &input.selections,
             previous
                 .as_ref()
                 .map(|a| &a.snapshot)
-                .or_else(|| old.as_ref().map(|d| &d.snapshot)),
+                .or_else(|| old.as_ref().map(|d| &d.snapshot))
+                .or_else(|| {
+                    copied
+                        .as_ref()
+                        .and_then(|j| j.job.input.as_ref().map(|d| &d.snapshot))
+                }),
         )?;
         let tx = store
             .db
@@ -68,6 +79,10 @@ pub fn draft_update(app: tauri::AppHandle, input: DraftInput) -> Result<Draft> {
             draft.source_photo_id = Some(source.id);
             draft.source_group_id = Some(source.group_id);
             store.put_draft(&draft)?;
+        } else if let Some(source) = copied {
+            draft.source_photo_id = None;
+            draft.source_group_id = Some(source.job.group_id);
+            store.put_draft(&draft)?;
         }
         tx.commit().map_err(|e| e.to_string())?;
         Ok(draft)
@@ -79,29 +94,53 @@ pub struct Library {
     drafts: Vec<Draft>,
     plans: Vec<Plan>,
     planning_jobs: Vec<PlanningJob>,
-    jobs: Vec<Job>,
+    jobs: Vec<JobSnapshot>,
 }
 #[tauri::command]
 pub fn job_list(app: tauri::AppHandle) -> Result<Library> {
     with_gallery(&app, |s| {
         let store = s.store(&app)?;
-        Ok(Library {
+        let mut library = Library {
             warnings: store.recovery_notices()?,
             drafts: store.records("creation_drafts")?,
             plans: store.records("generation_plans")?,
             planning_jobs: store.records("planning_jobs")?,
-            jobs: store.records("generation_jobs")?,
-        })
+            jobs: store
+                .records::<Job>("generation_jobs")?
+                .iter()
+                .map(|j| store.snapshot_job(&j.id))
+                .collect::<Result<Vec<_>>>()?,
+        };
+        for snapshot in &mut library.jobs {
+            include_memory_results(snapshot, &s.pending);
+        }
+        Ok(library)
     })
 }
 #[tauri::command]
 pub fn job_get(app: tauri::AppHandle, id: String) -> Result<JobSnapshot> {
     with_gallery(&app, |s| {
         let mut snapshot = s.store(&app)?.snapshot_job(&id)?;
-        // Even a disk failure that also prevents the status transaction must expose the bytes
-        // retained in memory, so the user can export them instead of losing the only result.
-        for i in &mut snapshot.items {
-            if s.pending.contains_key(&i.id) && i.generation_status != "generated" {
+        include_memory_results(&mut snapshot, &s.pending);
+        Ok(snapshot)
+    })
+}
+// The list and detail must agree even when a disk failure prevented the status
+// transaction: retain the generated result and offer saving, never regeneration.
+fn include_memory_results(
+    snapshot: &mut JobSnapshot,
+    pending: &std::collections::HashMap<String, PendingArtwork>,
+) {
+    for i in &mut snapshot.items {
+        if let Some(result) = pending.get(&i.id) {
+            if snapshot.thumbnail.is_empty() {
+                snapshot.thumbnail =
+                    crate::jobs::preview_thumbnail(&result.bytes).unwrap_or_default();
+            }
+            if i.generation_status != "generated" {
+                if i.generation_status == "failed" {
+                    snapshot.failed_count = snapshot.failed_count.saturating_sub(1);
+                }
                 i.generation_status = "generated".into();
                 i.save_status = "save_failed".into();
                 i.artwork_id = Some(i.id.clone());
@@ -111,8 +150,7 @@ pub fn job_get(app: tauri::AppHandle, id: String) -> Result<JobSnapshot> {
                 snapshot.pending_save_count += 1;
             }
         }
-        Ok(snapshot)
-    })
+    }
 }
 #[tauri::command]
 pub fn plan_select_version(
@@ -134,6 +172,7 @@ pub fn plan_create(
     let (d, base, j) = with_gallery(&app, |s| {
         let store = s.store(&app)?;
         let d = store.draft(&draft_id)?;
+        store.assert_draft_editable(&draft_id)?;
         crate::generation::validate_prompt(&d.prompt)?;
         planning::count(&d)?;
         if d.mode != "planned" || d.input_revision != input_revision {

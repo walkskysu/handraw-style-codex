@@ -10,6 +10,8 @@ use std::fs;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Job {
+    #[serde(default)]
+    pub input: Option<planning::Draft>,
     pub input_revision: u64,
     pub request_hash: String,
     pub id: String,
@@ -64,6 +66,7 @@ pub struct JobSnapshot {
     pub available_count: usize,
     pub failed_count: usize,
     pub pending_save_count: usize,
+    pub thumbnail: String,
 }
 #[derive(Serialize, Deserialize)]
 struct Manifest {
@@ -105,10 +108,57 @@ impl Store {
         Ok(())
     }
     pub fn snapshot_job(&self, id: &str) -> Result<JobSnapshot> {
-        let job = self.job(id)?;
+        let mut job = self.job(id)?;
+        // Old drafts could be reused for several runs. Recover each run's own input
+        // from its immutable group, never from the draft's latest edited values.
+        if job.input.is_none() {
+            let group = self.group(&job.group_id)?;
+            job.input = Some(planning::Draft {
+                id: job.draft_id.clone(),
+                mode: job.mode.clone(),
+                prompt: group.prompt,
+                snapshot: group.snapshot,
+                requested_count: Some(job.expected_count),
+                input_revision: job.input_revision,
+                current_plan_id: job.plan_id.clone(),
+                feedback_draft: String::new(),
+                updated_at: job.updated_at.clone(),
+                source_photo_id: group.source_photo_id,
+                source_group_id: group.source_group_id,
+            });
+        }
         let items = self.items(id)?;
         let available_count:i64=self.db.query_row("SELECT count(*) FROM artworks WHERE group_id=? AND deleted=0 AND availability='available'",[&job.group_id],|r|r.get(0)).map_err(|e|e.to_string())?;
         Ok(JobSnapshot {
+            thumbnail: items
+                .iter()
+                .filter_map(|i| i.artwork_id.as_ref())
+                .find_map(|id| {
+                    self.get(id)
+                        .ok()
+                        .and_then(|a| self.path(&a.thumbnail_path).ok())
+                        .and_then(|p| fs::read(p).ok())
+                })
+                .map(|bytes| {
+                    use base64::Engine;
+                    format!(
+                        "data:image/webp;base64,{}",
+                        base64::engine::general_purpose::STANDARD.encode(bytes)
+                    )
+                })
+                .or_else(|| {
+                    items
+                        .iter()
+                        .filter(|i| {
+                            i.generation_status == "generated" && i.save_status != "discarded"
+                        })
+                        .find_map(|i| {
+                            self.staged(&i.id)
+                                .ok()
+                                .and_then(|p| preview_thumbnail(&p.bytes))
+                        })
+                })
+                .unwrap_or_default(),
             plan: job.plan_id.as_ref().map(|p| self.plan(p)).transpose()?,
             generated_count: items
                 .iter()
@@ -161,6 +211,7 @@ impl Store {
             }
             return Ok(job);
         }
+        self.assert_draft_editable(draft_id)?;
         let d = self.draft(draft_id)?;
         crate::generation::validate_prompt(&d.prompt)?;
         if d.input_revision != revision {
@@ -218,6 +269,7 @@ impl Store {
         }
         self.put_group(&group)?;
         let job = Job {
+            input: Some(d.clone()),
             input_revision: revision,
             request_hash,
             id: id(),
@@ -599,6 +651,7 @@ impl Store {
                 p.status = "interrupted".into();
                 p.error = Some("规划被中断；上个完整版本和反馈已保留".into());
                 p.revision += 1;
+                p.updated_at = now();
                 self.put_planning_job(&p)?;
             }
         }
@@ -642,6 +695,7 @@ impl Store {
                 }
             }
             j = self.job(&j.id)?;
+            let previous_status = j.status.clone();
             let items = self.items(&j.id)?;
             if items.iter().any(|i| {
                 i.generation_status == "generated"
@@ -651,7 +705,9 @@ impl Store {
             } else if ["queued", "running", "stopping"].contains(&j.status.as_str()) {
                 j.status = "interrupted".into();
             }
-            self.bump(&mut j)?;
+            if j.status != previous_status {
+                self.bump(&mut j)?;
+            }
             self.project(&j)?;
         }
         Ok(())
@@ -676,6 +732,16 @@ fn ordinary_item_failure(error: &str) -> bool {
     ]
     .iter()
     .any(|message| error.contains(message))
+}
+pub fn preview_thumbnail(bytes: &[u8]) -> Option<String> {
+    use base64::Engine;
+    let image = image::load_from_memory(bytes).ok()?.thumbnail(240, 240);
+    let mut output = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut output, image::ImageFormat::WebP).ok()?;
+    Some(format!(
+        "data:image/webp;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(output.into_inner())
+    ))
 }
 fn terminal(items: &[Item]) -> &'static str {
     if items.iter().all(|i| i.save_status == "saved") {
