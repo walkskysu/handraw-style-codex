@@ -50,6 +50,6 @@ for (const width of [1440, 360]) {
     await page.keyboard.press('Escape')
     await expect(dialog).not.toBeVisible()
     await expect(page.locator('.gallery-card').first()).toBeFocused()
-    await expect(page.locator('.app-footer')).toBeInViewport()
+    await expect(page.locator('.app-header')).toBeInViewport()
   })
 }

@@ -7,7 +7,7 @@ import { discardPending, openBackups, message, type Artwork } from '../services/
 import type { GenerationSelections } from '../services/generationOptions'
 import PlanPanel from './PlanPanel.vue'
 import JobPreview from './JobPreview.vue'
-const props = defineProps<{ prompt: string; selections: GenerationSelections; reuseId?: string; locked: boolean; controls: HTMLElement | null }>()
+const props = defineProps<{ prompt: string; selections: GenerationSelections; reuseId?: string; locked: boolean; controls: HTMLElement | null; modeControl: HTMLElement | null }>()
 const emit = defineEmits<{ busy: [boolean]; unsaved: [boolean]; revision: [string]; restore: [string, GenerationSelections] }>()
 const mode = ref<api.Mode>(localStorage.getItem('creation-mode') === 'planned' ? 'planned' : 'quick')
 const count = ref<number | null>(null)
@@ -65,6 +65,7 @@ async function persist() {
 }
 async function switchMode(next: api.Mode) {
   if (busy.value || mode.value === next) return
+  if (!isDesktop()) { mode.value = next; return }
   // Flush feedback before switching; the debounce must not save it into the other draft.
   await act(async () => { await persist(); mode.value = next })
 }
@@ -97,6 +98,7 @@ async function act(action: () => Promise<unknown>) {
 async function openJob(id: string) { job.value = await api.snapshot(id); showLibrary.value = false }
 async function submit() {
   if (busy.value || props.locked || !props.prompt.trim() || !isDesktop()) return
+  showLibrary.value = false
   await act(async () => {
     const d = await persist()
     if (mode.value === 'planned') { planningId.value = await api.planCreate(d); return }
@@ -135,7 +137,11 @@ function stopJob() { return act(() => api.stop(job.value!.id)) }
 function resumeJob(item?: api.Item) { return act(() => api.resume(job.value!, item)) }
 function saveItem(item: api.Item) { return act(() => api.retrySave(item.id)) }
 function discardItem(item: api.Item) { return act(() => discardPending(item.id)) }
-defineExpose({ submit, refresh, photoSaved })
+async function openLibrary() {
+  showLibrary.value = true
+  if (isDesktop()) await act(refresh)
+}
+defineExpose({ submit, refresh, photoSaved, openLibrary })
 onMounted(async () => {
   mounted.value = true
   if (!isDesktop()) return
@@ -156,15 +162,16 @@ onMounted(async () => {
 onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(timer); unlisten?.(); closeListener?.() })
 </script>
 <template>
+  <Teleport v-if="mounted && modeControl" :to="modeControl">
+    <button type="button" class="mode-switch" role="switch" aria-label="快速生成" :aria-checked="mode === 'quick'" :disabled="busy"
+      :title="mode === 'quick' ? '关闭快速生成，先规划再确认' : '开启快速生成，每次生成一张图片'" @click="switchMode(mode === 'quick' ? 'planned' : 'quick')">
+      <span>{{ mode === 'quick' ? '快速生成' : '规划生成' }}</span><span class="switch-track" aria-hidden="true"></span>
+    </button>
+  </Teleport>
   <Teleport v-if="mounted && controls" :to="controls">
-    <div class="mode-switch" role="group" aria-label="生成模式">
-      <button type="button" :aria-pressed="mode === 'quick'" :disabled="busy" @click="switchMode('quick')">快速生成</button>
-      <button type="button" :aria-pressed="mode === 'planned'" :disabled="busy" @click="switchMode('planned')">规划生成</button>
-    </div>
     <label v-if="mode === 'planned'">生成数量 <select v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select></label>
-    <p id="generation-hint" class="input-hint">{{ mode === 'quick' ? '快速模式：每次只生成 1 张独立图片' : count ? `本次按所选数量 ${count} 张规划` : '自动规划 1–12 张；先审阅计划，明确确认后才生图' }}</p>
     <button type="submit" :disabled="busy || locked || !prompt.trim() || !isDesktop()">{{ busy ? '正在处理…' : mode === 'quick' ? '生成图片 ↗' : '生成计划' }}</button>
-    <button type="button" @click="act(async () => { await refresh(); showLibrary = !showLibrary })">草稿与任务</button>
+    <p id="generation-hint" class="input-hint">{{ mode === 'quick' ? '每次生成 1 张图片' : count ? `本次按所选数量 ${count} 张规划` : '自动规划 1–12 张；确认计划后生成' }}</p>
   </Teleport>
   <p v-if="error" role="alert" class="error">{{ error }}</p>
   <button v-if="error" type="button" @click="act(refresh)">重新读取状态 / 重试升级</button>
@@ -185,7 +192,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
   <div v-else-if="!plan && !planning" class="preview-placeholder"><span aria-hidden="true">✳</span><p>生成的图片会逐张出现在这里</p></div>
 </template>
 <style scoped>
-.mode-switch, .task-library { display: flex; flex-wrap: wrap; gap: .5rem; }
+.task-library { display: flex; flex-wrap: wrap; gap: .5rem; }
 .task-library { flex-direction: column; }
 :deep(pre) { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
 :deep(.photo-navigation) { display: flex; overflow-x: auto; gap: .4rem; }
