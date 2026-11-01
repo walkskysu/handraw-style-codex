@@ -13,6 +13,14 @@ for (const width of [1440, 360]) {
       Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
         invoke: async (command: string, args: any) => {
           if (command === 'job_list') return structuredClone(state)
+          if (command === 'task_delete') {
+            const draftId = args.kind === 'draft' ? args.id : state.jobs.find((j: any) => j.id === args.id).draft_id
+            state.jobs = state.jobs.filter((j: any) => j.id !== args.id)
+            state.drafts = state.drafts.filter((d: any) => d.id !== draftId)
+            state.plans = state.plans.filter((p: any) => p.draft_id !== draftId)
+            state.planning_jobs = state.planning_jobs.filter((p: any) => p.draft_id !== draftId)
+            return
+          }
           if (command === 'draft_update') {
             const old = state.drafts.find((d: any) => d.id === args.input.id)
             const d = { ...old, id: old?.id ?? `draft-${state.drafts.length}`, ...args.input, snapshot, input_revision: 1, feedback_draft: args.input.feedback, current_plan_id: old?.current_plan_id ?? null, updated_at: '2026-10-27' }
@@ -78,6 +86,50 @@ for (const width of [1440, 360]) {
     await expect(page.locator('.plan-panel')).toHaveCount(0)
     expect(await page.evaluate(() => (window as any).creationFixture.drafts.length)).toBe(2)
     await page.screenshot({ path: testInfo.outputPath('creation-draft-editor.png') })
+    expect(await page.locator('.preview-panel').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await page.getByRole('button', { name: '全部任务' }).click()
+    await page.getByRole('button', { name: '全部', exact: true }).click()
+    await expect(page.locator('.task-card')).toHaveCount(2)
+    // Running task has no delete action. The draft menu never opens the editor.
+    await expect(page.locator('.task-menu-toggle')).toHaveCount(1)
+    await page.locator('.task-menu-toggle').click()
+    await page.getByRole('button', { name: '删除任务', exact: true }).click()
+    const confirmation = page.getByRole('dialog', { name: '删除创作任务？', exact: true })
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation.getByRole('button', { name: '取消', exact: true })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(confirmation).not.toBeVisible()
+    await expect(page.locator('.task-menu-toggle')).toBeFocused()
+    await expect(page.locator('.task-card')).toHaveCount(2)
+    await page.locator('.task-menu-toggle').click()
+    await page.getByRole('button', { name: '删除任务', exact: true }).click()
+    await page.screenshot({ path: testInfo.outputPath('delete-task-confirmation.png') })
+    await confirmation.getByRole('button', { name: '确认删除', exact: true }).click()
+    await expect(page.locator('.task-card')).toHaveCount(1)
+    await page.evaluate(() => {
+      const j = (window as any).creationFixture.jobs[0]
+      Object.assign(j, { status: 'completed', generated_count: 2, saved_count: 2 })
+      j.items.forEach((i: any) => Object.assign(i, { generation_status: 'generated', save_status: 'saved', artwork_id: i.id }))
+      j.revision++
+    })
+    await expect(page.locator('.task-menu-toggle')).toHaveCount(1, { timeout: 10000 })
+    await page.locator('.task-card').click()
+    await expect(page.locator('.saved-notice')).toHaveText('✓ 已保存到图库')
+    await expect(page.locator('.job-preview .result-badge')).toHaveText('已完成')
+    await page.screenshot({ path: testInfo.outputPath('creation-completed-result.png') })
+    await page.getByRole('button', { name: '全部任务' }).click()
+    await page.locator('.task-menu-toggle').click()
+    await page.getByRole('button', { name: '删除任务', exact: true }).click()
+    await confirmation.getByRole('button', { name: '确认删除', exact: true }).click()
+    await expect(page.locator('.task-card')).toHaveCount(0)
+    await expect(page.getByRole('searchbox', { name: '搜索创作任务' })).toBeFocused()
+    await page.getByRole('button', { name: '新建创作' }).click()
+    await page.locator('#task-prompt').fill('森林咖啡馆海报，温暖的午后阳光、木屋、绿植与手冲咖啡。')
+    await page.locator('.task-preference').first().getByRole('button').first().click()
+    await page.locator('.task-catalog [data-option="FA-001"]').click()
+    await expect(page.locator('.task-preference').first().locator('img')).toBeVisible()
+    await page.locator('.task-preference').first().getByRole('button').first().click()
+    await page.screenshot({ path: testInfo.outputPath('creation-draft-preferences.png') })
     expect(await page.locator('.preview-panel').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
   })
 }

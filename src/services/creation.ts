@@ -15,6 +15,7 @@ export const active = (status: string) => ['queued', 'running', 'stopping'].incl
 export const label = (status: string) => ({ queued: '等待', running: '生成中', generating: '生成中', generated: '已生成', stopping: '当前图片完成后停止', paused: '已暂停', interrupted: '已中断', completed: '已完成', complete: '已完成', partial: '部分完成', failed: '失败', cancelled: '已停止', pending: '待保存', save_failed: '保存失败', saved: '已保存', missing: '文件不可用', none: '未生成', discarded: '已放弃暂存（未入库）' })[status] ?? status
 export const saveDraft = (input: { id?: string; mode: Mode; prompt: string; selections: GenerationSelections; reuse_id?: string; reuse_job_id?: string; requested_count: number | null; feedback: string; input_revision?: number }) => invoke<Draft>('draft_update', { input })
 export const library = () => invoke<Library>('job_list')
+export const deleteTask = (id: string, kind: 'draft' | 'job') => invoke<void>('task_delete', { id, kind })
 export const snapshot = (id: string) => invoke<JobSnapshot>('job_get', { id })
 export const planCreate = (d: Draft, basePlanId?: string) => invoke<string>('plan_create', { draftId: d.id, inputRevision: d.input_revision, basePlanId })
 export const selectVersion = (draftId: string, planId: string) => invoke<Plan>('plan_select_version', { draftId, planId })

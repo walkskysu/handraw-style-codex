@@ -118,6 +118,22 @@ pub fn job_list(app: tauri::AppHandle) -> Result<Library> {
     })
 }
 #[tauri::command]
+pub fn task_delete(app: tauri::AppHandle, id: String, kind: String) -> Result<()> {
+    let _work = WorkGuard::begin(&app)?;
+    with_gallery(&app, |s| {
+        let removed = s.store(&app)?.delete_task(&id, &kind)?;
+        for item in removed {
+            s.pending.remove(&item);
+        }
+        Ok(())
+    })?;
+    let _ = app.emit(
+        "creation-changed",
+        serde_json::json!({"job_id":id,"revision":0,"event_type":"task_deleted"}),
+    );
+    Ok(())
+}
+#[tauri::command]
 pub fn job_get(app: tauri::AppHandle, id: String) -> Result<JobSnapshot> {
     with_gallery(&app, |s| {
         let mut snapshot = s.store(&app)?.snapshot_job(&id)?;

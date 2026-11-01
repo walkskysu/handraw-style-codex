@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { creationTasks, filterTasks, taskStatus, taskTime } from '../src/services/creationTasks'
+import { canDeleteTask, creationTasks, filterTasks, taskStatus, taskTime } from '../src/services/creationTasks'
 import type { Draft, JobSnapshot, Library, Plan, PlanningJob } from '../src/services/creation'
 
 const draft = (id: string, prompt = id): Draft => ({ id, prompt, mode: 'quick', snapshot: { style: null, layout: null, color: null, catalog_version: 'v1' }, requested_count: null, input_revision: 1, current_plan_id: null, feedback_draft: '', updated_at: '2026-10-31T10:00:00Z' })
 const job = (id: string, input: Draft): JobSnapshot => ({ id, input, draft_id: input.id, group_id: id, plan_id: null, mode: input.mode, status: 'completed', revision: 2, expected_count: 1, items: [], plan: null, generated_count: 1, saved_count: 1, available_count: 1, failed_count: 0, pending_save_count: 0, updated_at: '2026-10-31T12:00:00Z' })
 describe('unified creation records', () => {
+  it('offers deletion for drafts and idle tasks, never for active workers even when saving needs attention', () => {
+    const d = draft('draft')
+    const data: Library = { drafts: [d], jobs: [], plans: [], planning_jobs: [] }
+    expect(canDeleteTask(creationTasks(data)[0]!)).toBe(true)
+    data.planning_jobs = [{ draft_id: d.id, status: 'running' } as PlanningJob]
+    expect(canDeleteTask(creationTasks(data)[0]!)).toBe(false)
+    data.planning_jobs = []
+    const j = job('job', d)
+    data.jobs = [j]
+    expect(canDeleteTask(creationTasks(data)[0]!)).toBe(true)
+    for (const status of ['queued', 'running', 'stopping']) {
+      Object.assign(j, { status, pending_save_count: 1, saved_count: 0 })
+      expect(canDeleteTask(creationTasks(data)[0]!)).toBe(false)
+    }
+    for (const status of ['paused', 'failed', 'interrupted', 'cancelled', 'partial']) {
+      j.status = status
+      expect(canDeleteTask(creationTasks(data)[0]!)).toBe(true)
+    }
+  })
   it('deduplicates linked drafts while preserving every historical run and its own input', () => {
     const d = draft('shared', 'current edited description')
     const first = job('first', { ...d, prompt: 'original cat' })

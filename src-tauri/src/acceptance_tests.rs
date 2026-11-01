@@ -80,6 +80,169 @@ fn complete(s: &Store, i: &Item, a: &Attempt) {
 }
 
 #[test]
+fn task_deletion_removes_drafts_and_confirmation_plans_but_rejects_active_planning() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let d = draft(&s, "quick", None);
+    assert!(s.delete_task(&d.id, "unknown").is_err());
+    s.delete_task(&d.id, "draft").unwrap();
+    assert!(s.draft(&d.id).is_err());
+    let d = draft(&s, "planned", Some(2));
+    let first = s.save_plan(&d, content(2), None).unwrap();
+    let second = s.save_plan(&d, content(2), Some(first.id.clone())).unwrap();
+    let mut planning = planning::PlanningJob {
+        id: planning::id(),
+        draft_id: d.id.clone(),
+        base_plan_id: Some(first.id.clone()),
+        input_revision: d.input_revision,
+        status: "running".into(),
+        error: None,
+        output_plan_id: Some(second.id.clone()),
+        revision: 1,
+        updated_at: planning::now(),
+    };
+    for status in ["queued", "running", "stopping"] {
+        planning.status = status.into();
+        s.put_planning_job(&planning).unwrap();
+        assert!(s.delete_task(&d.id, "draft").is_err());
+        assert!(s.plan(&second.id).is_ok());
+    }
+    planning.status = "completed".into();
+    s.put_planning_job(&planning).unwrap();
+    s.delete_task(&d.id, "draft").unwrap();
+    assert!(s.records::<Draft>("creation_drafts").unwrap().is_empty());
+    assert!(s
+        .records::<planning::Plan>("generation_plans")
+        .unwrap()
+        .is_empty());
+    assert!(s
+        .records::<planning::PlanningJob>("planning_jobs")
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn task_deletion_preserves_gallery_bytes_and_exports_and_survives_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let j = planned(&s, 1);
+    assert!(s.delete_task(&j.draft_id, "draft").is_err());
+    for status in ["queued", "running", "stopping"] {
+        let mut active = j.clone();
+        active.status = status.into();
+        s.put_job(&active).unwrap();
+        assert!(s.delete_task(&j.id, "job").is_err());
+    }
+    s.put_job(&j).unwrap();
+    let (i, a) = s.next_item(&j.id).unwrap().unwrap();
+    complete(&s, &i, &a);
+    assert!(s.next_item(&j.id).unwrap().is_none());
+    let bytes = s.bytes(&s.get(&i.id).unwrap()).unwrap();
+    let group = planning::json(&s.group(&j.group_id).unwrap()).unwrap();
+    // Force a late failure: earlier FK detaches and item deletions must roll back.
+    s.db.execute_batch("CREATE TRIGGER reject_delete BEFORE DELETE ON generation_jobs BEGIN SELECT RAISE(ABORT,'test failure'); END;").unwrap();
+    assert!(s.delete_task(&j.id, "job").is_err());
+    assert_eq!(s.get(&i.id).unwrap().generation_item_id, Some(i.id.clone()));
+    assert!(s.attempt(&a.id).is_ok());
+    s.db.execute_batch("DROP TRIGGER reject_delete").unwrap();
+    assert_eq!(s.delete_task(&j.id, "job").unwrap(), vec![i.id.clone()]);
+    assert!(s.job(&j.id).is_err());
+    assert!(s.draft(&j.draft_id).is_err());
+    assert!(s.attempt(&a.id).is_err());
+    drop(s);
+    let s = Store::open(dir.path().into()).unwrap();
+    let artwork = s.get(&i.id).unwrap();
+    assert!(artwork.generation_item_id.is_none());
+    assert_eq!(s.bytes(&artwork).unwrap(), bytes);
+    assert_eq!(
+        planning::json(&s.group(&j.group_id).unwrap()).unwrap(),
+        group
+    );
+    assert!(s.records::<Job>("generation_jobs").unwrap().is_empty());
+    let export = tempfile::tempdir().unwrap();
+    crate::groups::export_group_to(
+        export.path(),
+        &s.group(&j.group_id).unwrap(),
+        &[(artwork, bytes)],
+        true,
+    )
+    .unwrap();
+}
+
+#[test]
+fn task_deletion_cleans_pending_results_without_resurrection() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let j = planned(&s, 2);
+    let (i, a) = s.next_item(&j.id).unwrap().unwrap();
+    s.stage_result(&i, &a, &output(&s, &i)).unwrap();
+    s.fail_item(&i, &a, "disk full".into(), true).unwrap();
+    assert_eq!(s.snapshot_job(&j.id).unwrap().pending_save_count, 1);
+    assert_eq!(s.delete_task(&j.id, "job").unwrap().len(), 2);
+    assert!(!s.path(&a.staging_path).unwrap().exists());
+    assert!(!s.path(&format!("staging/{}.json", a.id)).unwrap().exists());
+    drop(s);
+    let s = Store::open(dir.path().into()).unwrap();
+    assert!(s.records::<Job>("generation_jobs").unwrap().is_empty());
+    assert!(s.get(&i.id).is_err());
+    assert!(s.recovery_notices().unwrap().is_empty());
+}
+
+#[test]
+fn task_deletion_preserves_other_runs_and_copied_plans() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let mut j = planned(&s, 1);
+    j.status = "failed".into();
+    s.put_job(&j).unwrap();
+    let group = PhotoGroup::new("second".into(), Snapshot::default(), 1, None);
+    s.put_group(&group).unwrap();
+    let mut other = j.clone();
+    other.id = planning::id();
+    other.group_id = group.id;
+    other.idempotency_key = "other-run".into();
+    s.put_job(&other).unwrap();
+    let copy = draft(&s, "planned", Some(1));
+    let copied_plan = s.save_plan(&copy, content(1), j.plan_id.clone()).unwrap();
+    let mut copying = planning::PlanningJob {
+        id: planning::id(),
+        draft_id: copy.id.clone(),
+        base_plan_id: j.plan_id.clone(),
+        input_revision: copy.input_revision,
+        status: "running".into(),
+        error: None,
+        output_plan_id: Some(copied_plan.id.clone()),
+        revision: 1,
+        updated_at: planning::now(),
+    };
+    s.put_planning_job(&copying).unwrap();
+    assert!(s.delete_task(&j.id, "job").is_err());
+    copying.status = "completed".into();
+    s.put_planning_job(&copying).unwrap();
+    s.delete_task(&j.id, "job").unwrap();
+    assert!(s.draft(&j.draft_id).is_ok());
+    assert!(s.snapshot_job(&other.id).is_ok());
+    s.delete_task(&other.id, "job").unwrap();
+    assert!(s.draft(&j.draft_id).is_err());
+    let plan = s.plan(&copied_plan.id).unwrap();
+    assert!(s
+        .record::<planning::PlanningJob>("planning_jobs", &copying.id)
+        .unwrap()
+        .base_plan_id
+        .is_none());
+    assert!(plan.parent_plan_id.is_none());
+    assert_eq!(plan.content_hash, copied_plan.content_hash);
+    assert!(s
+        .start_job(
+            &copy.id,
+            copy.input_revision,
+            Some((&plan.id, &plan.content_hash)),
+            "copy"
+        )
+        .is_ok());
+}
+
+#[test]
 fn quick_creates_exactly_one_item_without_a_plan_and_idempotent_admission() {
     let dir = tempfile::tempdir().unwrap();
     let s = Store::open(dir.path().into()).unwrap();

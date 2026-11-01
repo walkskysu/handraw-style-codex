@@ -41,3 +41,6 @@ export function taskTime(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '时间未知' : date.toLocaleString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 }
+export function canDeleteTask(task: CreationTask) {
+  return task.filter !== 'active' && (!task.job || !active(task.job.status))
+}

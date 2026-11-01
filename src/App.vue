@@ -98,7 +98,7 @@ function showGallery(groupId: string) { changeView('gallery', groupId) }
     <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
       @close="closePreview" @click="($event.target === previewDialog) && previewDialog?.close()">
       <section class="preview-panel panel" aria-labelledby="preview-title">
-        <div class="section-heading"><h2 id="preview-title">创作任务</h2><button type="button" class="close-preview" aria-label="关闭创作任务" autofocus @click="previewDialog?.close()">×</button></div>
+        <div class="section-heading"><h2 id="preview-title" :class="{ 'visually-hidden': !flow?.showLibrary }">创作任务</h2><button v-if="!flow?.showLibrary" type="button" class="preview-back" :disabled="flow?.pending" @click="flow?.openLibrary()">← 全部任务</button><button type="button" class="close-preview" aria-label="关闭创作任务" autofocus @click="previewDialog?.close()">×</button></div>
         <CreationFlow ref="flow" :controls="actions" :mode-control="modeControl" :prompt="prompt" :selections="selections" :reuse-id="reused?.id" :locked="updateLocked" @busy="pending = $event" @frozen="frozen = $event" @unsaved="hasUnsaved = $event" @revision="revision = $event" @restore="restore" @gallery="showGallery" @reset-source="reused = null" />
       </section>
     </dialog>

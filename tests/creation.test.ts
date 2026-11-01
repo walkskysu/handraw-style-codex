@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
-import { saveDraft, start, planCreate, resume, retrySave, type Draft, type Plan, type Job, type Item } from '../src/services/creation'
+import { deleteTask, saveDraft, start, planCreate, resume, retrySave, type Draft, type Plan, type Job, type Item } from '../src/services/creation'
 
 afterEach(clearMocks)
 const draft = { id: 'draft', input_revision: 7 } as Draft
 describe('creation IPC contracts', () => {
+  it('deletes the selected record type and preserves backend rejection', async () => {
+    const ipc = vi.fn(); mockIPC(ipc)
+    await deleteTask('draft-1', 'draft')
+    expect(ipc).toHaveBeenLastCalledWith('task_delete', { id: 'draft-1', kind: 'draft' })
+    ipc.mockRejectedValueOnce('任务正在生成')
+    await expect(deleteTask('job-1', 'job')).rejects.toBe('任务正在生成')
+    expect(ipc).toHaveBeenLastCalledWith('task_delete', { id: 'job-1', kind: 'job' })
+  })
   it.each(Array.from({ length: 8 }, (_, mask) => mask))('persists literal prompts and independent visual selections (%i)', async mask => {
     const ipc = vi.fn().mockResolvedValue(draft); mockIPC(ipc)
     const input = { mode: 'planned' as const, prompt: '猫\n" & $(echo test) <script>', selections: { ...(mask & 1 ? { style: 'FH-044' } : {}), ...(mask & 2 ? { layout: 'SC-024' } : {}), ...(mask & 4 ? { color: 'C-36' } : {}) }, requested_count: 12, feedback: '' }

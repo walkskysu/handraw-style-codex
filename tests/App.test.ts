@@ -24,11 +24,22 @@ const button = (w: ReturnType<typeof mount>, text: string) => w.findAll('button'
 function backend() {
   const data: Library = { drafts: [], plans: [], planning_jobs: [], jobs: [] }
   const jobs: Record<string, JobSnapshot> = {}
-  let serial = 0, failPlan = false, failSave = false, lostStart = false
+  let serial = 0, failPlan = false, failSave = false, lostStart = false, failDelete = false
   let waitForSave: Promise<void> | undefined
   let waitForSnapshot: Promise<void> | undefined
   const ipc = vi.fn(async (cmd: string, args: any) => {
     if (cmd === 'job_list') return structuredClone(data)
+    if (cmd === 'task_delete') {
+      if (failDelete) throw new Error('删除失败，请重试')
+      const draftId = args.kind === 'draft' ? args.id : data.jobs.find(j => j.id === args.id)!.draft_id
+      data.jobs = data.jobs.filter(j => j.id !== args.id)
+      if (!data.jobs.some(j => j.draft_id === draftId)) {
+        data.drafts = data.drafts.filter(d => d.id !== draftId)
+        data.plans = data.plans.filter(p => p.draft_id !== draftId)
+        data.planning_jobs = data.planning_jobs.filter(p => p.draft_id !== draftId)
+      }
+      return
+    }
     if (cmd === 'draft_update') {
       await waitForSave
       if (failSave) throw new Error('磁盘已满，草稿保存失败')
@@ -71,10 +82,77 @@ function backend() {
   })
   mockIPC(ipc)
   async function changed(j: JobSnapshot) { j.revision++; events.change?.({ payload: { job_id: j.id, revision: j.revision, event_type: 'item_saved' } }); await flushPromises() }
-  return { data, jobs, ipc, changed, failPlan: () => { failPlan = true }, failSave: (value: boolean) => { failSave = value }, loseStart: () => { lostStart = true }, delaySave: (wait: Promise<void>) => { waitForSave = wait }, delaySnapshot: (wait: Promise<void>) => { waitForSnapshot = wait } }
+  return { data, jobs, ipc, changed, failDelete: (value: boolean) => { failDelete = value }, failPlan: () => { failPlan = true }, failSave: (value: boolean) => { failSave = value }, loseStart: () => { lostStart = true }, delaySave: (wait: Promise<void>) => { waitForSave = wait }, delaySnapshot: (wait: Promise<void>) => { waitForSnapshot = wait } }
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it('does not keep referencing a deleted source job when autosaving its copied draft', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('窗边的猫咪')
+    await w.get('form').trigger('submit'); await flushPromises()
+    const j = b.data.jobs[0]!
+    j.status = 'completed'; j.saved_count = 1
+    await b.changed(j)
+    await w.get('.task-detail .primary').trigger('click'); await flushPromises()
+    const copyId = b.data.drafts[0]!.id
+    expect(copyId).not.toBe(j.draft_id)
+    expect(b.ipc.mock.calls.filter(([cmd]) => cmd === 'draft_update').at(-1)?.[1].input.reuse_job_id).toBe(j.id)
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    const source = w.findAll('.task-row').find(row => row.text().includes('已完成'))!
+    await source.get('.task-menu-toggle').trigger('click')
+    await button(w, '删除任务').trigger('click'); await flushPromises()
+    await button(w, '确认删除').trigger('click'); await flushPromises()
+    await w.get('.close-preview').trigger('click')
+    await w.get('#prompt').setValue('新的咖啡馆')
+    await w.get('.open-preview').trigger('click'); await flushPromises()
+    const latest = b.ipc.mock.calls.filter(([cmd]) => cmd === 'draft_update').at(-1)?.[1].input
+    expect(latest).toMatchObject({ id: copyId, prompt: '新的咖啡馆' })
+    expect(latest.reuse_job_id).toBeUndefined()
+  })
+  it('confirms draft deletion, supports cancel and retry, and clears the selected editor without recreating the draft', async () => {
+    const b = backend(), w = await open()
+    await w.get('#task-prompt').setValue('森林咖啡馆海报')
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    const id = b.data.drafts[0]!.id
+    await w.get('.task-menu-toggle').trigger('click')
+    await button(w, '删除任务').trigger('click'); await flushPromises()
+    expect(w.get<HTMLDialogElement>('.confirmation-dialog').element.open).toBe(true)
+    expect(w.find('.task-library').exists()).toBe(true)
+    await w.get('.confirmation-dialog button').trigger('click'); await flushPromises()
+    expect(b.ipc.mock.calls.filter(([cmd]) => cmd === 'task_delete')).toHaveLength(0)
+    await w.get('.task-menu-toggle').trigger('click')
+    await button(w, '删除任务').trigger('click'); await flushPromises()
+    b.failDelete(true)
+    await button(w, '确认删除').trigger('click'); await flushPromises()
+    expect(w.get('.confirmation-dialog').text()).toContain('删除失败，请重试')
+    expect(w.findAll('.task-card')).toHaveLength(1)
+    b.failDelete(false)
+    await button(w, '确认删除').trigger('click'); await flushPromises()
+    expect(b.ipc).toHaveBeenCalledWith('task_delete', { id, kind: 'draft' })
+    expect(w.findAll('.task-card')).toHaveLength(0)
+    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('')
+    await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
+    expect(b.data.drafts).toHaveLength(0)
+  })
+  it.each(['completed', 'paused'])('deletes a %s execution from the list without opening it and resets frozen input', async status => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('窗边的猫咪')
+    await w.get('form').trigger('submit'); await flushPromises()
+    const j = b.data.jobs[0]!
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    expect(w.find('.task-menu-toggle').exists()).toBe(false)
+    Object.assign(j, { status, generated_count: 1, saved_count: status === 'completed' ? 1 : 0, pending_save_count: status === 'paused' ? 1 : 0 })
+    await b.changed(j)
+    await w.get('.task-menu-toggle').trigger('click')
+    await button(w, '删除任务').trigger('click'); await flushPromises()
+    expect(w.get('.confirmation-dialog').text()).toContain('已保存到图库的作品会保留')
+    if (status === 'paused') expect(w.get('.confirmation-dialog').text()).toContain('尚未保存的 1 张图片将被丢弃')
+    await button(w, '确认删除').trigger('click'); await flushPromises()
+    expect(b.ipc).toHaveBeenCalledWith('task_delete', { id: j.id, kind: 'job' })
+    expect(w.findAll('.task-card')).toHaveLength(0)
+    expect(w.get('#prompt').attributes('disabled')).toBeUndefined()
+    expect(w.find('.job-preview').exists()).toBe(false)
+  })
   it('does not let a late startup snapshot overwrite a new creation', async () => {
     const b = backend()
     const d: Draft = { id: 'old-draft', prompt: '历史作品', mode: 'quick', snapshot: visual, requested_count: 1, input_revision: 1, current_plan_id: null, feedback_draft: '', updated_at: '2026-10-31T12:00:00Z' }
@@ -214,7 +292,7 @@ describe('persistent two-mode workspace', () => {
     Object.assign(j.items[0]!, { generation_status: 'generated', save_status: 'save_failed', artwork_id: j.items[0]!.id, error: '磁盘已满' }); j.status = 'paused'; j.generated_count = j.pending_save_count = 1; await b.changed(j); w.unmount()
     const restored = await open(); expect(restored.text()).toContain('磁盘已满'); expect(restored.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id)
     await button(restored, '重试保存此图').trigger('click'); await flushPromises()
-    expect(b.ipc.mock.calls.filter(([c]) => c === 'generation_start_quick')).toHaveLength(1); expect(b.ipc).toHaveBeenCalledWith('generation_retry_save', { itemId: j.items[0]!.id }); expect(restored.text()).toContain('已保存 1 张')
+    expect(b.ipc.mock.calls.filter(([c]) => c === 'generation_start_quick')).toHaveLength(1); expect(b.ipc).toHaveBeenCalledWith('generation_retry_save', { itemId: j.items[0]!.id }); expect(restored.text()).toContain('已保存到图库')
   })
   it('preserves selections through modes and catalog keyboard navigation', async () => {
     backend(); const w = await open()
