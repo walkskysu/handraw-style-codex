@@ -75,6 +75,69 @@ function backend() {
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it.each([false, true])('starts with editable previous input and generates a separate job without changing history (edit: %s)', async (edit) => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('窗边的小猫')
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    const j = Object.values(b.jobs)[0]!
+    j.status = 'completed'
+    j.input!.snapshot = { ...visual, style: generationOptions.style[0]!, layout: generationOptions.layout[0]!, color: generationOptions.color[0]! }
+    const original = structuredClone(j), originalDraft = structuredClone(b.data.drafts[0]!)
+    w.unmount(); b.ipc.mockClear()
+
+    const restored = await open()
+    expect(restored.get<HTMLTextAreaElement>('#prompt').element.value).toBe('窗边的小猫')
+    expect(restored.get('#prompt').attributes('disabled')).toBeUndefined()
+    expect(restored.get('[role="switch"]').attributes('disabled')).toBeUndefined()
+    expect(restored.get('.catalog-panel fieldset').attributes('disabled')).toBeUndefined()
+    for (const key of ['style', 'layout', 'color'] as const) {
+      expect(restored.get(`[data-selection="${key}"]`).text()).toContain(j.input!.snapshot[key]!.id)
+    }
+    expect(restored.get('.generation-action button[type="submit"]').text()).toBe('生成图片 ↗')
+    expect(restored.get('.generation-action button[type="submit"]').attributes('disabled')).toBeUndefined()
+    expect(restored.text()).not.toContain('以此新建')
+    expect(restored.find('.job-preview').exists()).toBe(false)
+    expect(restored.get<HTMLDialogElement>('#preview-dialog').element.open).toBe(false)
+    await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
+    expect(b.ipc.mock.calls.map(([cmd]) => cmd)).not.toContain('draft_update')
+    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about'].includes(cmd))).toBe(true)
+    expect(b.data.jobs).toHaveLength(1)
+    // A normal refresh must not select the historical execution again.
+    await b.changed(j)
+    expect(restored.get('#prompt').attributes('disabled')).toBeUndefined()
+    const prompt = edit ? '窗边的小狗' : '窗边的小猫'
+    if (edit) await restored.get('#prompt').setValue(prompt)
+    await restored.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.ipc).toHaveBeenCalledWith('draft_update', { input: expect.objectContaining({ id: undefined, prompt, reuse_job_id: j.id, selections: { style: j.input!.snapshot.style!.id, layout: j.input!.snapshot.layout!.id, color: j.input!.snapshot.color!.id } }) })
+    expect(b.data.jobs).toHaveLength(2)
+    expect(b.data.jobs[0]!.draft_id).not.toBe(j.draft_id)
+    expect(b.data.drafts.find(d => d.id === originalDraft.id)).toEqual(originalDraft)
+    expect(j).toEqual({ ...original, revision: original.revision + 1 })
+  })
+  it('restores planned input and count without reusing its confirmed plan', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('两张猫')
+    await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    await w.get('.generation-action select').setValue(2)
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    await button(w, '确认计划，生成 2 张').trigger('click'); await flushPromises()
+    Object.values(b.jobs)[0]!.status = 'completed'
+    w.unmount(); b.ipc.mockClear()
+
+    const restored = await open()
+    expect(restored.get<HTMLTextAreaElement>('#prompt').element.value).toBe('两张猫')
+    expect(restored.get('[role="switch"]').attributes('aria-checked')).toBe('false')
+    expect(restored.get<HTMLSelectElement>('.generation-action select').element.value).toBe('2')
+    expect(restored.get('.generation-action button[type="submit"]').text()).toBe('生成计划')
+    expect(restored.find('.plan-panel').exists()).toBe(false)
+    expect(restored.find('.job-preview').exists()).toBe(false)
+    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about'].includes(cmd))).toBe(true)
+    await restored.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.data.drafts).toHaveLength(2)
+    expect(b.data.plans).toHaveLength(2)
+    expect(b.data.plans[1]!.confirmed_at).toBeNull()
+    expect(b.data.jobs).toHaveLength(1)
+  })
   it('does not let a late startup snapshot overwrite a new creation', async () => {
     const b = backend()
     const d: Draft = { id: 'old-draft', prompt: '历史作品', mode: 'quick', snapshot: visual, requested_count: 1, input_revision: 1, current_plan_id: null, feedback_draft: '', updated_at: '2026-10-31T12:00:00Z' }
@@ -226,7 +289,15 @@ describe('persistent two-mode workspace', () => {
     const b = backend(), w = await open()
     await w.get('#prompt').setValue('猫'); await w.get('form').trigger('submit'); await flushPromises(); const j = Object.values(b.jobs)[0]!
     Object.assign(j.items[0]!, { generation_status: 'generated', save_status: 'save_failed', artwork_id: j.items[0]!.id, error: '磁盘已满' }); j.status = 'paused'; j.generated_count = j.pending_save_count = 1; await b.changed(j); w.unmount()
-    const restored = await open(); expect(restored.text()).toContain('磁盘已满'); expect(restored.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id)
+    const restored = await open()
+    expect(restored.get('.generation-action button[type="submit"]').text()).toBe('生成图片 ↗')
+    expect(restored.get('#prompt').attributes('disabled')).toBeUndefined()
+    expect(restored.find('.job-preview').exists()).toBe(false)
+    await button(restored, '← 全部任务').trigger('click'); await flushPromises()
+    expect(restored.findAll('.task-card')).toHaveLength(1)
+    await restored.get('.task-card').trigger('click'); await flushPromises()
+    expect(restored.get('#prompt').attributes('disabled')).toBeDefined()
+    expect(restored.text()).toContain('磁盘已满'); expect(restored.get('.image-preview img').attributes('src')).toBe(image + j.items[0]!.id)
     await button(restored, '重试保存此图').trigger('click'); await flushPromises()
     expect(b.ipc.mock.calls.filter(([c]) => c === 'generation_start_quick')).toHaveLength(1); expect(b.ipc).toHaveBeenCalledWith('generation_retry_save', { itemId: j.items[0]!.id }); expect(restored.text()).toContain('已保存 1 张')
   })
