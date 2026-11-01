@@ -56,16 +56,16 @@ for (const viewport of [
     }
 
     // Short and stacked layouts must still expose creation controls and preview.
-    await page.locator('button[type="submit"]').scrollIntoViewIfNeeded()
-    await expect(page.locator('button[type="submit"]')).toBeInViewport()
+    await page.locator('.creation-panel button[type="submit"]').scrollIntoViewIfNeeded()
+    await expect(page.locator('.creation-panel button[type="submit"]')).toBeInViewport()
     if (viewport.width < 640) {
       const creation = await page.locator('.creation-panel').boundingBox()
       const catalog = await page.locator('.catalog-panel').boundingBox()
       expect(catalog!.y).toBeGreaterThanOrEqual(creation!.y + creation!.height)
     }
     await page.locator('.open-preview').click()
-    await page.locator('.preview-placeholder').scrollIntoViewIfNeeded()
-    await expect(page.locator('.preview-placeholder')).toBeInViewport()
+    await expect(page.getByRole('searchbox', { name: '搜索创作任务' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: '待处理', exact: true })).toBeVisible()
     await expectNoDocumentScroll(page)
     {
       await page.keyboard.press('Escape')

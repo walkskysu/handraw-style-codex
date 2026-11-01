@@ -24,12 +24,17 @@ const button = (w: ReturnType<typeof mount>, text: string) => w.findAll('button'
 function backend() {
   const data: Library = { drafts: [], plans: [], planning_jobs: [], jobs: [] }
   const jobs: Record<string, JobSnapshot> = {}
-  let serial = 0, failPlan = false
+  let serial = 0, failPlan = false, failSave = false, lostStart = false
+  let waitForSave: Promise<void> | undefined
+  let waitForSnapshot: Promise<void> | undefined
   const ipc = vi.fn(async (cmd: string, args: any) => {
     if (cmd === 'job_list') return structuredClone(data)
     if (cmd === 'draft_update') {
+      await waitForSave
+      if (failSave) throw new Error('磁盘已满，草稿保存失败')
       const input = args.input, old = data.drafts.find(d => d.id === input.id)
-      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot: visual, requested_count: input.requested_count, input_revision: old ? old.input_revision + (old.prompt !== input.prompt ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: 'now' }
+      const changed = old && (old.prompt !== input.prompt || old.mode !== input.mode || old.requested_count !== input.requested_count)
+      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot: visual, requested_count: input.requested_count, input_revision: old ? old.input_revision + (changed ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: '2026-10-31T12:00:00Z' }
       data.drafts = [d, ...data.drafts.filter(x => x.id !== d.id)]; return structuredClone(d)
     }
     if (cmd === 'plan_create') {
@@ -44,9 +49,12 @@ function backend() {
       const items: Item[] = Array.from({ length: p?.content.items.length ?? 1 }, (_, position) => ({ id: `image-${id}-${position}`, job_id: id, position, title: `猫 ${position + 1}`, prompt: `画面 ${position + 1}`, generation_status: 'queued', save_status: 'none', attempt_no: 0, attempt_id: null, artwork_id: null, error: null }))
       if (p) p.confirmed_at = 'now'
       const job: JobSnapshot = { id, group_id: `group-${id}`, draft_id: d.id, plan_id: p?.id ?? null, mode: d.mode, status: 'running', revision: 1, expected_count: items.length, updated_at: 'now', items, plan: p, generated_count: 0, saved_count: 0, available_count: 0, failed_count: 0, pending_save_count: 0 }
-      jobs[id] = job; data.jobs.unshift(job); return structuredClone(job)
+      job.input = structuredClone(d)
+      jobs[id] = job; data.jobs.unshift(job)
+      if (lostStart) throw new Error('响应丢失')
+      return structuredClone(job)
     }
-    if (cmd === 'job_get') return structuredClone(jobs[args.id])
+    if (cmd === 'job_get') { await waitForSnapshot; return structuredClone(jobs[args.id]) }
     if (cmd === 'generation_item_image') return image + args.itemId
     if (cmd === 'generation_stop') { const j = jobs[args.id]!; j.status = 'stopping'; j.revision++; return }
     if (cmd === 'generation_retry_save') {
@@ -63,10 +71,52 @@ function backend() {
   })
   mockIPC(ipc)
   async function changed(j: JobSnapshot) { j.revision++; events.change?.({ payload: { job_id: j.id, revision: j.revision, event_type: 'item_saved' } }); await flushPromises() }
-  return { data, jobs, ipc, changed, failPlan: () => { failPlan = true } }
+  return { data, jobs, ipc, changed, failPlan: () => { failPlan = true }, failSave: (value: boolean) => { failSave = value }, loseStart: () => { lostStart = true }, delaySave: (wait: Promise<void>) => { waitForSave = wait }, delaySnapshot: (wait: Promise<void>) => { waitForSnapshot = wait } }
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it('does not let a late startup snapshot overwrite a new creation', async () => {
+    const b = backend()
+    const d: Draft = { id: 'old-draft', prompt: '历史作品', mode: 'quick', snapshot: visual, requested_count: 1, input_revision: 1, current_plan_id: null, feedback_draft: '', updated_at: '2026-10-31T12:00:00Z' }
+    const j: JobSnapshot = { id: 'old-job', draft_id: d.id, input: d, group_id: 'old-group', plan_id: null, mode: 'quick', status: 'completed', revision: 1, expected_count: 1, items: [], plan: null, generated_count: 1, saved_count: 1, available_count: 1, failed_count: 0, pending_save_count: 0, updated_at: d.updated_at }
+    b.data.drafts.push(d); b.data.jobs.push(j); b.jobs[j.id] = j
+    let release!: () => void
+    b.delaySnapshot(new Promise<void>(resolve => { release = resolve }))
+    const w = await open()
+    expect(b.ipc.mock.calls.some(([cmd]) => cmd === 'job_get')).toBe(true)
+    await w.get('#prompt').setValue('刚刚输入的新创作')
+    release(); await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('刚刚输入的新创作')
+    expect(w.find('.job-preview').exists()).toBe(false)
+    expect(w.get('#prompt').attributes('disabled')).toBeUndefined()
+  })
+  it('serializes slow autosaves and flushes the newest input before switching tasks', async () => {
+    const b = backend(), w = await open()
+    let release!: () => void
+    b.delaySave(new Promise<void>(resolve => { release = resolve }))
+    await w.get('#task-prompt').setValue('第一段输入')
+    await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
+    await w.get('#task-prompt').setValue('等待保存时继续编辑')
+    await button(w, '← 全部任务').trigger('click')
+    expect(w.find('.task-library').exists()).toBe(false)
+    release(); await flushPromises()
+    expect(b.data.drafts).toHaveLength(1)
+    expect(b.data.drafts[0]?.prompt).toBe('等待保存时继续编辑')
+    expect(w.get('.task-card').text()).toContain('等待保存时继续编辑')
+  })
+  it('keeps the selected editor when saving fails during task navigation', async () => {
+    const b = backend(), w = await open()
+    b.failSave(true)
+    await w.get('#task-prompt').setValue('不能丢失的编辑')
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    expect(w.find('.task-library').exists()).toBe(false)
+    expect(w.get<HTMLTextAreaElement>('#task-prompt').element.value).toBe('不能丢失的编辑')
+    expect(w.text()).toContain('保存失败')
+    b.failSave(false)
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    expect(w.find('.task-library').exists()).toBe(true)
+    expect(b.data.drafts[0]?.prompt).toBe('不能丢失的编辑')
+  })
   it('opens tasks from navigation and preserves creation state when closing the independent panel', async () => {
     const b = backend(), w = await open()
     expect(w.get('.brand').text()).toBe('IdeaCanvas')
@@ -74,7 +124,7 @@ describe('persistent two-mode workspace', () => {
     expect(w.get<HTMLDialogElement>('#preview-dialog').element.open).toBe(false)
     await w.get('#prompt').setValue('窗边的小猫')
     await w.get('[data-option="FA-001"]').trigger('click')
-    await button(w, '草稿与任务').trigger('click'); await flushPromises()
+    await button(w, '创作任务').trigger('click'); await flushPromises()
     expect(w.get<HTMLDialogElement>('#preview-dialog').element.open).toBe(true)
     expect(w.find('.task-library').exists()).toBe(true)
     await w.get('.close-preview').trigger('click')
@@ -129,15 +179,20 @@ describe('persistent two-mode workspace', () => {
     await w.get('#prompt').setValue('猫'); await w.get('[role="switch"]').trigger('click'); await flushPromises(); await w.get('form').trigger('submit'); await flushPromises()
     await w.get('#prompt').setValue('狗'); expect(button(w, '确认计划，生成 3 张').attributes('disabled')).toBeDefined(); expect(w.text()).toContain('输入或配置已变化')
   })
-  it('flushes unapplied feedback when switching modes and restores the independent plan draft', async () => {
+  it('keeps one draft and feedback across mode changes, invalidating its old plan', async () => {
     const b = backend(), w = await open()
     await w.get('#prompt').setValue('猫'); await w.get('[role="switch"]').trigger('click'); await flushPromises()
     await w.get('form').trigger('submit'); await flushPromises()
     await w.get('.plan-panel textarea').setValue('尚未应用的反馈')
     await w.get('[role="switch"]').trigger('click'); await flushPromises()
-    expect(b.data.drafts.find(d => d.mode === 'planned')?.feedback_draft).toBe('尚未应用的反馈')
+    expect(b.data.drafts).toHaveLength(1)
+    expect(b.data.drafts[0]?.mode).toBe('quick')
+    expect(b.data.drafts[0]?.feedback_draft).toBe('尚未应用的反馈')
     await w.get('[role="switch"]').trigger('click'); await flushPromises()
     expect(w.get<HTMLTextAreaElement>('.plan-panel textarea').element.value).toBe('尚未应用的反馈')
+    expect(b.data.drafts).toHaveLength(1)
+    expect(button(w, '确认计划，生成 3 张').attributes('disabled')).toBeDefined()
+    expect(w.text()).toContain('旧计划需要更新')
     expect(b.data.jobs).toHaveLength(0)
   })
   it('previews the first result before later slots finish and preserves manual selection', async () => {
@@ -177,5 +232,81 @@ describe('persistent two-mode workspace', () => {
     const current = { id: 'job', revision: 4 } as JobSnapshot
     expect(acceptSnapshot(current, { id: 'job', revision: 2 } as JobSnapshot)).toBe(current)
     expect(acceptSnapshot(current, { id: 'job', revision: 9 } as JobSnapshot).revision).toBe(9)
+  })
+  it('does not persist blank tasks, autosaves real input, and retries failed saves without losing edits', async () => {
+    const b = backend(), w = await open()
+    await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    expect(b.data.drafts).toHaveLength(0)
+    b.failSave(true)
+    await w.get('#task-prompt').setValue('保存失败时保留这段内容')
+    await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
+    expect(w.text()).toContain('磁盘已满，草稿保存失败')
+    expect(w.get<HTMLTextAreaElement>('#task-prompt').element.value).toBe('保存失败时保留这段内容')
+    expect(b.data.drafts).toHaveLength(0)
+    b.failSave(false); await button(w, '重试保存').trigger('click'); await flushPromises()
+    expect(b.data.drafts).toHaveLength(1)
+    expect(w.text()).toContain('已自动保存')
+    await w.get('#task-prompt').setValue('继续编辑同一个任务')
+    await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
+    expect(b.data.drafts).toHaveLength(1)
+    expect(b.data.drafts[0]?.prompt).toBe('继续编辑同一个任务')
+  })
+  it('opens a draft inside the panel with no unrelated result, and combines list search with filters', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('已经完成的猫')
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    const j = Object.values(b.jobs)[0]!
+    Object.assign(j.items[0]!, { generation_status: 'generated', save_status: 'saved', artwork_id: 'cat' })
+    Object.assign(j, { status: 'completed', generated_count: 1, saved_count: 1 })
+    b.data.drafts.push({ ...structuredClone(b.data.drafts[0]!), id: 'forest', prompt: '森林咖啡馆', current_plan_id: null })
+    await b.changed(j)
+    await w.get('.open-preview').trigger('click'); await flushPromises()
+    expect(w.findAll('.task-card')).toHaveLength(2)
+    await w.get('[aria-label="搜索创作任务"]').setValue('森林')
+    await button(w, '草稿').trigger('click')
+    expect(w.findAll('.task-card')).toHaveLength(1)
+    await w.get('.task-card').trigger('click'); await flushPromises()
+    expect(w.get<HTMLTextAreaElement>('#task-prompt').element.value).toBe('森林咖啡馆')
+    expect(w.find('.job-preview').exists()).toBe(false)
+    expect(w.find('.image-preview').exists()).toBe(false)
+    await w.get('#task-prompt').setValue('森林咖啡馆新版')
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    expect(b.data.drafts.find(d => d.id === 'forest')?.prompt).toBe('森林咖啡馆新版')
+  })
+  it('freezes executed input and explicitly copies only input into a new draft', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('两张猫'); await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    await w.get('.generation-action select').setValue(2)
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    await button(w, '确认计划，生成 2 张').trigger('click'); await flushPromises()
+    const original = structuredClone(b.data.drafts[0]!)
+    const j = Object.values(b.jobs)[0]!
+    j.status = 'completed'; j.saved_count = j.generated_count = 2; await b.changed(j)
+    expect(w.get('#prompt').attributes('disabled')).toBeDefined()
+    expect(w.get('.catalog-panel fieldset').attributes('disabled')).toBeDefined()
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.data.jobs).toHaveLength(1)
+    await button(w, '以此新建').trigger('click'); await flushPromises()
+    expect(b.data.drafts).toHaveLength(2)
+    expect(b.data.drafts[0]).toMatchObject({ prompt: original.prompt, mode: 'planned', requested_count: 2, current_plan_id: null })
+    expect(b.data.drafts[0]?.id).not.toBe(original.id)
+    expect(b.data.drafts.find(d => d.id === original.id)).toEqual(original)
+    expect(w.find('.job-preview').exists()).toBe(false)
+    expect(w.find('.plan-panel').exists()).toBe(false)
+    expect(w.get('#prompt').attributes('disabled')).toBeUndefined()
+    expect(b.ipc.mock.calls.filter(([cmd]) => cmd === 'plan_confirm_and_start')).toHaveLength(1)
+  })
+  it('recovers an admitted execution after its response is lost without creating another run', async () => {
+    const b = backend(), w = await open()
+    b.loseStart()
+    await w.get('#prompt').setValue('找回本次执行')
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(w.text()).toContain('响应丢失')
+    const j = Object.values(b.jobs)[0]!
+    await b.changed(j)
+    expect(w.find('.job-preview').exists()).toBe(true)
+    expect(w.get('#prompt').attributes('disabled')).toBeDefined()
+    expect(b.data.jobs).toHaveLength(1)
+    expect(b.data.drafts).toHaveLength(1)
   })
 })

@@ -27,8 +27,10 @@ for (const width of [1440, 360]) {
             state.planning_jobs = [{ id: 'planning', draft_id: d.id, status: 'completed', output_plan_id: plan.id, revision: 2 }]; return 'planning'
           }
           if (command === 'plan_confirm_and_start') {
+            const d = state.drafts.find((d: any) => d.id === args.draftId)
             state.plans[0].confirmed_at = 'now'
             const job = { id: 'job', group_id: 'group', mode: 'planned', status: 'running', revision: 1, expected_count: 2, generated_count: 0, saved_count: 0, pending_save_count: 0, plan: state.plans[0], items: [0, 1].map(position => ({ id: `item-${position}`, position, title: `猫咪 ${position + 1}`, prompt: '仅输出本张独立图片', generation_status: position ? 'queued' : 'generating', save_status: 'none', attempt_no: 1, attempt_id: `attempt-${position}` })) }
+            Object.assign(job, { input: structuredClone(d), draft_id: d.id, updated_at: '2026-10-31T12:00:00Z' })
             state.jobs = [job]; return structuredClone(job)
           }
           if (command === 'job_get') return structuredClone(state.jobs[0])
@@ -51,12 +53,31 @@ for (const width of [1440, 360]) {
       j.items[1].generation_status = 'generating'; j.saved_count = j.generated_count = 1; j.revision++
     })
     await expect(page.locator('.job-preview')).toContainText('已保存 1 张', { timeout: 10000 })
-    await page.locator('.job-preview img').scrollIntoViewIfNeeded()
-    await expect(page.locator('.job-preview img')).toBeVisible()
+    await page.locator('.job-preview .image-preview img').scrollIntoViewIfNeeded()
+    await expect(page.locator('.job-preview .image-preview img')).toBeVisible()
+    expect(await page.locator('.image-preview img').evaluate(img => img.getBoundingClientRect().height)).toBeLessThanOrEqual(480)
+    await page.getByRole('button', { name: '放大查看', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: '放大查看图片' })).toBeVisible()
+    await page.getByRole('button', { name: '关闭放大' }).click()
     await page.screenshot({ path: testInfo.outputPath('incremental-result.png') })
     await page.getByRole('navigation', { name: '任务照片' }).locator('button').nth(1).click()
     await expect(page.locator('.job-preview')).toContainText('第 2 张 · 生成中')
     await expect(page.getByRole('button', { name: '导出此图', exact: true })).toHaveCount(0)
     expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= innerWidth)).toBe(true)
+    await page.getByRole('button', { name: '全部任务' }).click()
+    await expect(page.locator('.task-card')).toHaveCount(1)
+    await expect(page.getByRole('button', { name: '待处理', exact: true })).toBeVisible()
+    await page.getByRole('searchbox', { name: '搜索创作任务' }).fill('猫咪')
+    await page.getByRole('button', { name: '进行中', exact: true }).click()
+    await expect(page.locator('.task-card')).toHaveCount(1)
+    await page.screenshot({ path: testInfo.outputPath('creation-task-list.png') })
+    await page.locator('.task-card').click()
+    await page.locator('.task-detail').getByRole('button', { name: '以此新建' }).click()
+    await expect(page.locator('#task-prompt')).toHaveValue('两张猫咪变体')
+    await expect(page.locator('.job-preview')).toHaveCount(0)
+    await expect(page.locator('.plan-panel')).toHaveCount(0)
+    expect(await page.evaluate(() => (window as any).creationFixture.drafts.length)).toBe(2)
+    await page.screenshot({ path: testInfo.outputPath('creation-draft-editor.png') })
+    expect(await page.locator('.preview-panel').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
   })
 }

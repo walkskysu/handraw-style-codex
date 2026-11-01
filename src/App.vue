@@ -11,6 +11,8 @@ const desktop = isDesktop()
 const updateLocked = ref(false)
 const view = ref<'workspace' | 'gallery'>('workspace')
 const pending = ref(false)
+const frozen = ref(false)
+const galleryGroup = ref<string>()
 const hasUnsaved = ref(false)
 const revision = ref('')
 const flow = ref<InstanceType<typeof CreationFlow> | null>(null)
@@ -53,9 +55,9 @@ function moveTab(event: KeyboardEvent) {
   event.preventDefault(); activeCategory.value = keys[next]!
   nextTick(() => document.getElementById(activeCategory.value + '-tab')?.focus())
 }
-function clearSelection(category: OptionCategory) { if (!pending.value) delete selections.value[category] }
+function clearSelection(category: OptionCategory) { if (!pending.value && !frozen.value) delete selections.value[category] }
 async function generate() {
-  if (pending.value || updateLocked.value || !prompt.value.trim() || !desktop) return
+  if (pending.value || frozen.value || updateLocked.value || !prompt.value.trim() || !desktop) return
   previewTrigger = actions.value?.querySelector('button[type="submit"]') ?? null
   previewDialog.value?.showModal(); previewOpen.value = true
   await flow.value?.submit()
@@ -67,13 +69,15 @@ function requestReuse(artwork: Artwork) {
   else applyReuse()
 }
 function restore(text: string, config: GenerationSelections) { prompt.value = text; selections.value = config; baseline.value = draft() }
-function applyReuse() {
+async function applyReuse() {
   if (!replacement.value) return
+  await flow.value?.newTask()
   reused.value = replacement.value
   restore(reused.value.prompt, Object.fromEntries(optionCategories.flatMap(({ key }) => { const option = reused.value!.snapshot[key]; return option ? [[key, option.id]] : [] })))
   view.value = 'workspace'; reuseDialog.value?.close(); nextTick(() => promptInput.value?.focus())
 }
-function changeView(next: 'workspace' | 'gallery') { previewDialog.value?.close(); view.value = next; if (next === 'workspace' && desktop) void flow.value?.refresh() }
+function changeView(next: 'workspace' | 'gallery', groupId?: string) { galleryGroup.value = groupId; previewDialog.value?.close(); view.value = next; if (next === 'workspace' && desktop) void flow.value?.refresh() }
+function showGallery(groupId: string) { changeView('gallery', groupId) }
 </script>
 
 <template>
@@ -86,7 +90,7 @@ function changeView(next: 'workspace' | 'gallery') { previewDialog.value?.close(
       <nav class="app-navigation" aria-label="工作区">
         <button type="button" :aria-current="view === 'workspace' ? 'page' : undefined" @click="changeView('workspace')">创作</button>
         <button type="button" :aria-current="view === 'gallery' ? 'page' : undefined" @click="changeView('gallery')">我的图库</button>
-        <button type="button" class="open-preview" aria-haspopup="dialog" aria-controls="preview-dialog" :aria-expanded="previewOpen" @click="openPreview">草稿与任务<span v-if="pending" class="task-indicator" role="status"> · 处理中</span></button>
+        <button type="button" class="open-preview" aria-haspopup="dialog" aria-controls="preview-dialog" :aria-expanded="previewOpen" @click="openPreview">创作任务<span v-if="pending" class="task-indicator" role="status"> · 处理中</span></button>
       </nav>
       <AboutSettings :working="pending" :unsaved="hasUnsaved" @lock="updateLocked = $event" />
     </header>
@@ -94,32 +98,32 @@ function changeView(next: 'workspace' | 'gallery') { previewDialog.value?.close(
     <dialog id="preview-dialog" ref="previewDialog" class="preview-dialog" aria-labelledby="preview-title"
       @close="closePreview" @click="($event.target === previewDialog) && previewDialog?.close()">
       <section class="preview-panel panel" aria-labelledby="preview-title">
-        <div class="section-heading"><h2 id="preview-title">计划与作品预览</h2><button type="button" class="close-preview" aria-label="关闭作品预览" @click="previewDialog?.close()">×</button></div>
-        <CreationFlow ref="flow" :controls="actions" :mode-control="modeControl" :prompt="prompt" :selections="selections" :reuse-id="reused?.id" :locked="updateLocked" @busy="pending = $event" @unsaved="hasUnsaved = $event" @revision="revision = $event" @restore="restore" />
+        <div class="section-heading"><h2 id="preview-title">创作任务</h2><button type="button" class="close-preview" aria-label="关闭创作任务" autofocus @click="previewDialog?.close()">×</button></div>
+        <CreationFlow ref="flow" :controls="actions" :mode-control="modeControl" :prompt="prompt" :selections="selections" :reuse-id="reused?.id" :locked="updateLocked" @busy="pending = $event" @frozen="frozen = $event" @unsaved="hasUnsaved = $event" @revision="revision = $event" @restore="restore" @gallery="showGallery" @reset-source="reused = null" />
       </section>
     </dialog>
 
-    <GalleryView v-if="view === 'gallery'" :generation-pending="pending" :revision="revision" @reuse="requestReuse" @saved="flow?.refresh()" />
+    <GalleryView v-if="view === 'gallery'" :generation-pending="pending" :revision="revision" :group-id="galleryGroup" @reuse="requestReuse" @saved="flow?.refresh()" />
     <main v-show="view === 'workspace'" id="main">
       <section class="creation-panel panel" aria-labelledby="creation-title">
         <form :aria-busy="pending" @submit.prevent="generate">
           <div class="creation-heading"><h2 id="creation-title"><label for="prompt">你想画什么？</label></h2><div ref="modeControl"></div></div>
           <textarea id="prompt" ref="promptInput" v-model="prompt" name="prompt" rows="6"
             placeholder="例如：一只在窗边喝咖啡的小猫，午后阳光洒在桌上……"
-            :maxlength="MAX_PROMPT_LENGTH" required :disabled="pending" aria-describedby="generation-hint" />
+            :maxlength="MAX_PROMPT_LENGTH" required :disabled="pending || frozen" aria-describedby="generation-hint" />
           <div class="generation-options">
             <div class="section-heading">
               <h2>画面偏好 <span class="optional-label">· 可选</span></h2>
             </div>
             <div v-for="category in optionCategories" :key="category.key" class="selection-row" :data-selection="category.key">
-              <button type="button" class="selection-link"
+              <button type="button" class="selection-link" :disabled="frozen"
                 :title="selectedOptions[category.key]?.name ?? '按描述自动选择'" @click="openCatalog(category.key)">
                 <span class="selection-placeholder" aria-hidden="true">{{ categoryIcons[category.key] }}</span>
                 <span>{{ categoryLabels[category.key] }}</span>
                 <span class="selection-value">{{ selectedOptions[category.key]?.id ?? '自动' }}</span><span aria-hidden="true">›</span>
               </button>
               <button v-if="selectedOptions[category.key]" type="button" class="clear-selection"
-                :aria-label="`清除${categoryLabels[category.key]}选择`" :disabled="pending"
+                :aria-label="`清除${categoryLabels[category.key]}选择`" :disabled="pending || frozen"
                 @click="clearSelection(category.key)">×</button>
             </div>
           </div>
@@ -142,14 +146,14 @@ function changeView(next: 'workspace' | 'gallery') { previewDialog.value?.close(
           </button>
         </div>
         <OptionPicker ref="picker" v-model="selections[activeCategory]" :category="activeCategory"
-          :label="categoryLabels[activeCategory]" :options="generationOptions[activeCategory]" :disabled="pending" />
+          :label="categoryLabels[activeCategory]" :options="generationOptions[activeCategory]" :disabled="pending || frozen" />
       </section>
 
     </main>
 
     <dialog ref="reuseDialog" class="confirmation-dialog reuse-dialog" aria-labelledby="reuse-title">
       <h2 id="reuse-title">替换当前编辑？</h2>
-      <p>当前有未保存的编辑或尚未保存到图库的作品。复用将替换描述与配置，已有预览仍会保留。</p>
+      <p>当前有编辑内容或尚未保存到图库的作品。复用会保存当前草稿，并创建新的创作任务。</p>
       <button type="button" @click="applyReuse">确认复用</button>
       <button type="button" @click="reuseDialog?.close()">取消</button>
     </dialog>

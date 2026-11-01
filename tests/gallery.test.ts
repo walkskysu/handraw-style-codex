@@ -56,6 +56,14 @@ function galleryIPC() {
 const button = (wrapper: ReturnType<typeof mount>, text: string) => wrapper.findAll('button').find(b => b.text() === text)!
 
 describe('persistent gallery UI', () => {
+  it('opens the task result group directly without selecting an unrelated gallery card', async () => {
+    const ipc = galleryIPC()
+    const wrapper = mount(GalleryView, { props: { generationPending: false, groupId: 'saved-1' } })
+    await flushPromises()
+    expect(ipc).toHaveBeenCalledWith('gallery_detail', { id: 'saved-1' })
+    expect(wrapper.get<HTMLDialogElement>('dialog').element.open).toBe(true)
+    expect(wrapper.get('dialog img').attributes('src')).toBe(image)
+  })
   it('opens the matching photo first while keeping the whole group browsable and actions scoped', async () => {
     const photos = [artwork('one'), artwork('two'), artwork('three')].map((a, position) => ({ ...a, group_id: 'group', position }))
     let g = { ...group(photos[0]!), id: 'group', expected_count: 4, generated_count: 3, generation_errors: ['第 4 张生成失败'] }

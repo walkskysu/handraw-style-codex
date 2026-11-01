@@ -104,6 +104,206 @@ fn quick_creates_exactly_one_item_without_a_plan_and_idempotent_admission() {
     assert!(s.next_item(&j.id).unwrap().is_none());
     assert_eq!(s.snapshot_job(&j.id).unwrap().saved_count, 1);
 }
+
+#[test]
+fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    assert!(s
+        .save_draft(
+            None,
+            "quick".into(),
+            "  ".into(),
+            Snapshot::default(),
+            None,
+            "".into(),
+            None
+        )
+        .is_err());
+    assert!(s.records::<Draft>("creation_drafts").unwrap().is_empty());
+    let first = draft(&s, "quick", None);
+    let d = s
+        .save_draft(
+            Some(first.id.clone()),
+            "planned".into(),
+            first.prompt.clone(),
+            first.snapshot.clone(),
+            Some(2),
+            "".into(),
+            Some(first.input_revision),
+        )
+        .unwrap();
+    assert_eq!(d.id, first.id);
+    assert!(d.input_revision > first.input_revision);
+    let p = s.save_plan(&d, content(2), None).unwrap();
+    let changed = s
+        .save_draft(
+            Some(d.id.clone()),
+            "quick".into(),
+            d.prompt.clone(),
+            d.snapshot.clone(),
+            Some(1),
+            "".into(),
+            Some(d.input_revision),
+        )
+        .unwrap();
+    let restored = s
+        .save_draft(
+            Some(d.id.clone()),
+            "planned".into(),
+            d.prompt.clone(),
+            d.snapshot.clone(),
+            Some(2),
+            "".into(),
+            Some(changed.input_revision),
+        )
+        .unwrap();
+    assert!(s
+        .start_job(
+            &restored.id,
+            restored.input_revision,
+            Some((&p.id, &p.content_hash)),
+            "stale"
+        )
+        .is_err());
+    let revised = s
+        .save_plan(&restored, content(2), Some(p.id.clone()))
+        .unwrap();
+    let j = s
+        .start_job(
+            &restored.id,
+            restored.input_revision,
+            Some((&revised.id, &revised.content_hash)),
+            "execute",
+        )
+        .unwrap();
+    assert!(s
+        .save_draft(
+            Some(d.id.clone()),
+            "planned".into(),
+            "new input".into(),
+            d.snapshot.clone(),
+            Some(3),
+            "".into(),
+            Some(restored.input_revision)
+        )
+        .is_err());
+    assert!(s.save_plan(&restored, content(2), None).is_err());
+    assert!(s.select_plan(&restored.id, &revised.id).is_err());
+    assert!(s
+        .start_job(
+            &restored.id,
+            restored.input_revision,
+            Some((&revised.id, &revised.content_hash)),
+            "another-click"
+        )
+        .is_err());
+    assert_eq!(s.records::<Draft>("creation_drafts").unwrap().len(), 1);
+    assert_eq!(s.records::<Job>("generation_jobs").unwrap().len(), 1);
+    assert_eq!(
+        s.records::<planning::Plan>("generation_plans")
+            .unwrap()
+            .len(),
+        2
+    );
+    let input = s.snapshot_job(&j.id).unwrap().job.input.unwrap();
+    assert_eq!(input.prompt, restored.prompt);
+    assert_eq!(input.requested_count, Some(2));
+}
+
+#[test]
+fn quick_execution_cannot_be_restarted_with_a_new_key_or_edited_after_completion() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let d = draft(&s, "quick", None);
+    let j = s.start_job(&d.id, d.input_revision, None, "quick").unwrap();
+    let (i, a) = s.next_item(&j.id).unwrap().unwrap();
+    complete(&s, &i, &a);
+    assert!(s.start_job(&d.id, d.input_revision, None, "again").is_err());
+    assert_eq!(
+        s.start_job(&d.id, d.input_revision, None, "quick")
+            .unwrap()
+            .id,
+        j.id
+    );
+    assert!(s
+        .save_draft(
+            Some(d.id.clone()),
+            "quick".into(),
+            "different".into(),
+            d.snapshot.clone(),
+            None,
+            "".into(),
+            Some(d.input_revision)
+        )
+        .is_err());
+    let copy = s
+        .save_draft(
+            None,
+            d.mode.clone(),
+            d.prompt.clone(),
+            d.snapshot.clone(),
+            d.requested_count,
+            "".into(),
+            None,
+        )
+        .unwrap();
+    assert_ne!(copy.id, d.id);
+    assert!(copy.current_plan_id.is_none());
+    let next = s
+        .start_job(&copy.id, copy.input_revision, None, "new-creation")
+        .unwrap();
+    assert_ne!(next.id, j.id);
+    let original = s.snapshot_job(&j.id).unwrap();
+    assert_eq!(original.saved_count, 1);
+    assert!(!original.thumbnail.is_empty());
+    let updated_at = original.job.updated_at.clone();
+    s.recover_jobs().unwrap();
+    assert_eq!(s.job(&j.id).unwrap().updated_at, updated_at);
+}
+
+#[test]
+fn legacy_shared_drafts_display_each_runs_own_immutable_input_without_rewriting_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let d = draft(&s, "quick", None);
+    let mut first = s
+        .start_job(&d.id, d.input_revision, None, "old-first")
+        .unwrap();
+    first.input = None; // Serialized jobs from before the input snapshot was introduced.
+    s.put_job(&first).unwrap();
+    let group = PhotoGroup::new(
+        "second historical input".into(),
+        Snapshot::default(),
+        1,
+        None,
+    );
+    s.put_group(&group).unwrap();
+    let mut second = first.clone();
+    second.id = planning::id();
+    second.group_id = group.id;
+    second.idempotency_key = "old-second".into();
+    s.put_job(&second).unwrap();
+    let mut edited = d.clone();
+    edited.prompt = "later draft changes".into();
+    s.put_draft(&edited).unwrap();
+    assert_eq!(
+        s.snapshot_job(&first.id).unwrap().job.input.unwrap().prompt,
+        d.prompt
+    );
+    assert_eq!(
+        s.snapshot_job(&second.id)
+            .unwrap()
+            .job
+            .input
+            .unwrap()
+            .prompt,
+        "second historical input"
+    );
+    assert!(s.job(&first.id).unwrap().input.is_none());
+    assert_eq!(s.records::<Job>("generation_jobs").unwrap().len(), 2);
+    assert_eq!(s.draft(&d.id).unwrap().prompt, edited.prompt);
+}
 #[test]
 fn plans_require_current_revision_hash_applied_feedback_and_explicit_confirmation() {
     let dir = tempfile::tempdir().unwrap();

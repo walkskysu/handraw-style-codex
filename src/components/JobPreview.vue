@@ -2,8 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { active, itemImage, label, type Item, type JobSnapshot } from '../services/creation'
 import { exportArtwork, message } from '../services/gallery'
+import { taskStatus } from '../services/creationTasks'
+import PlanPanel from './PlanPanel.vue'
 const props = defineProps<{ job: JobSnapshot; disabled: boolean }>()
-const emit = defineEmits<{ stop: []; resume: []; retry: [Item]; save: [Item]; discard: [Item] }>()
+const emit = defineEmits<{ stop: []; resume: []; retry: [Item]; save: [Item]; discard: [Item]; gallery: [] }>()
+const zoom = ref<HTMLDialogElement | null>(null)
 const selected = ref(0)
 const follow = ref(true)
 const latestPosition = ref(0)
@@ -46,18 +49,20 @@ async function exportImage() {
 </script>
 <template>
   <section class="job-preview" aria-labelledby="job-title">
-    <h3 id="job-title">{{ job.plan?.content.title ?? '快速生成' }}</h3>
-    <p role="status" aria-live="polite">{{ label(job.status) }} · 已生成 {{ job.generated_count }} / {{ job.expected_count }} 张 · 已保存 {{ job.saved_count }} 张</p>
+    <h3 id="job-title">{{ job.plan?.content.title || job.input?.prompt.slice(0, 80) || job.items[0]?.title || '创作任务' }}</h3>
+    <p role="status" aria-live="polite">{{ job.mode === 'quick' ? '快速生成' : '规划生成' }} · {{ taskStatus(job) }} · 已生成 {{ job.generated_count }} / {{ job.expected_count }} 张 · 已保存 {{ job.saved_count }} 张</p>
+    <progress v-if="active(job.status)" :value="job.generated_count" :max="job.expected_count" aria-label="生成进度" />
     <p v-if="job.plan">按第 {{ job.plan.version }} 版计划执行</p>
     <figure v-if="image" class="image-preview"><img :src="image" :alt="item?.title" /><figcaption>第 {{ (item?.position ?? 0) + 1 }} / {{ job.expected_count }} 张 · {{ item?.title }}</figcaption></figure>
-    <div v-else class="preview-placeholder"><p>第 {{ (item?.position ?? 0) + 1 }} 张 · {{ label(item?.generation_status ?? 'queued') }}</p></div>
+    <button v-if="image" type="button" @click="zoom?.showModal()">放大查看</button>
+    <dialog ref="zoom" class="image-zoom" aria-label="放大查看图片" @click="($event.target === zoom) && zoom?.close()"><button type="button" @click="zoom?.close()">关闭放大</button><img v-if="image" :src="image" :alt="item?.title" /></dialog>
+    <div v-if="!image" class="preview-placeholder"><p>第 {{ (item?.position ?? 0) + 1 }} 张 · {{ label(item?.generation_status ?? 'queued') }}</p></div>
     <nav v-if="job.items.length > 1" class="photo-navigation" aria-label="任务照片" @keydown="move">
-      <button v-for="i in job.items" :key="i.id" type="button" :aria-current="selected === i.position ? 'true' : undefined" @click="select(i.position)">{{ i.position + 1 }} · {{ label(i.save_status === 'saved' ? 'saved' : i.generation_status) }}</button>
+      <button v-for="i in job.items" :key="i.id" type="button" :aria-current="selected === i.position ? 'true' : undefined" @click="select(i.position)">{{ i.position + 1 }} · {{ label(i.generation_status === 'generated' ? i.save_status : i.generation_status) }}</button>
     </nav>
     <label v-if="job.items.length > 1"><input v-model="follow" type="checkbox" /> 跟随最新结果</label>
     <p v-if="item?.error" role="alert">{{ item.error }}</p>
-    <details v-if="item"><summary>本图信息与计划</summary><p>{{ item.title }}</p><pre>{{ item.prompt }}</pre><p>{{ label(item.save_status) }} · 尝试 {{ item.attempt_no }}</p></details>
-    <details v-if="job.plan"><summary>查看确认计划</summary><pre>{{ JSON.stringify(job.plan, null, 2) }}</pre></details>
+    <div class="result-actions">
     <button v-if="active(job.status)" type="button" :disabled="disabled || job.status === 'stopping'" @click="emit('stop')">{{ job.status === 'stopping' ? '当前图片完成后停止' : '停止后续生成' }}</button>
     <button v-else-if="job.status !== 'completed' && !job.pending_save_count" type="button" :disabled="disabled" @click="emit('resume')">继续生成</button>
     <button v-if="item && ['failed', 'interrupted', 'cancelled'].includes(item.generation_status)" type="button" :disabled="disabled || active(job.status)" @click="emit('retry', item)">仅重试第 {{ item.position + 1 }} 张</button>
@@ -67,6 +72,26 @@ async function exportImage() {
       <div v-if="discardConfirmation" role="alert"><p>仅放弃第 {{ item.position + 1 }} 张未保存的结果。此图不会入库，关闭后无法找回；请先导出需要保留的图片。</p><button type="button" @click="emit('discard', item); discardConfirmation = false">确认放弃此图</button><button type="button" @click="discardConfirmation = false">取消</button></div>
     </template>
     <button v-if="item?.generation_status === 'generated' && item.save_status !== 'discarded'" type="button" :disabled="exporting || !image" @click="exportImage">导出此图</button>
+    <button v-if="job.saved_count" type="button" @click="emit('gallery')">在图库查看</button>
+    </div>
+    <details v-if="job.input"><summary>创作输入与配置</summary><p class="preserve-text">{{ job.input.prompt }}</p><p v-for="key in (['style', 'layout', 'color'] as const)" :key="key">{{ { style: '风格', layout: '排版', color: '配色' }[key] }}：{{ job.input.snapshot[key]?.name ?? '自动' }}</p><p>数量：{{ job.input.requested_count ?? '自动' }}</p></details>
+    <details v-if="item"><summary>本图提示词</summary><p>{{ item.title }}</p><pre>{{ item.prompt }}</pre><p>{{ label(item.save_status) }} · 尝试 {{ item.attempt_no }}</p></details>
+    <details v-if="job.plan"><summary>查看确认计划</summary><PlanPanel :plan="job.plan" :versions="[]" feedback="" disabled :stale="false" readonly /></details>
     <p v-if="error" role="alert">{{ error }}</p><p aria-live="polite">{{ notice }}</p>
   </section>
 </template>
+<style scoped>
+.job-preview { display: flex; flex-direction: column; align-items: stretch; gap: 12px; min-width: 0; }
+.job-preview h3 { font-size: 20px; margin: 0; overflow-wrap: anywhere; }
+.image-preview { flex: none; }
+.image-preview img { flex: none; width: 100%; height: min(42dvh, 380px); max-height: 380px; object-fit: contain; }
+.result-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px; border-block: 1px solid var(--border); }
+.result-actions > button { flex: 1; }
+.job-preview > button { align-self: flex-end; padding: 6px 12px; font-size: 13px; }
+.image-preview figcaption { margin-top: 6px; font-size: 12px; text-align: center; }
+.image-zoom { max-width: 96vw; max-height: 94dvh; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.image-zoom::backdrop { background: #202d28bb; }
+.image-zoom img { display: block; max-width: 100%; height: auto; margin-top: 12px; }
+.image-zoom button { position: sticky; top: 0; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>

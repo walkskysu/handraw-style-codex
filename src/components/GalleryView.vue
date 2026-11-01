@@ -5,7 +5,7 @@ import { displayTime, exportArtwork, exportGroup, getArtwork, getGroup, listGall
 import { label as statusLabel } from '../services/creation'
 import { optionCategories } from '../services/generationOptions'
 
-const props = defineProps<{ generationPending: boolean; revision?: string }>()
+const props = defineProps<{ generationPending: boolean; revision?: string; groupId?: string }>()
 const emit = defineEmits<{ reuse: [artwork: Artwork]; saved: [id: string] }>()
 const search = ref('')
 const favorite = ref(false)
@@ -57,11 +57,11 @@ async function selectPhoto(id: string) {
   confirmPurge.value = false
 }
 
-async function open(card: GalleryCard, event: Event) {
+async function open(card: Pick<GalleryCard, 'id' | 'matching_ids'>, event?: Event) {
   if (busy.value) return
   busy.value = true
   error.value = ''; notice.value = ''
-  opener = event.currentTarget as HTMLElement
+  opener = event?.currentTarget as HTMLElement ?? null
   try {
     groupDetail.value = await getGroup(card.id, deleted.value)
     groupTitle.value = groupDetail.value.group.title
@@ -78,6 +78,12 @@ async function open(card: GalleryCard, event: Event) {
   } catch (cause) { error.value = message(cause) }
   finally { busy.value = false }
 }
+
+watch(() => props.groupId, async id => {
+  if (!id || !isDesktop()) return
+  await nextTick()
+  await open({ id, matching_ids: [] })
+}, { immediate: true })
 
 async function editGroup(changes = {}) {
   if (!groupDetail.value) return

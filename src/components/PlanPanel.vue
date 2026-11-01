@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Plan } from '../services/creation'
-defineProps<{ plan: Plan; versions: Plan[]; feedback: string; disabled: boolean; stale: boolean }>()
+defineProps<{ plan: Plan; versions: Plan[]; feedback: string; disabled: boolean; stale: boolean; readonly?: boolean }>()
 defineEmits<{ 'update:feedback': [string]; revise: []; confirm: []; select: [string] }>()
 </script>
 <template>
@@ -17,16 +17,28 @@ defineEmits<{ 'update:feedback': [string]; revise: []; confirm: []; select: [str
     </ol>
     <p>本版修改：{{ plan.content.change_summary || '初始计划' }}</p>
     <details><summary>完整内容与视觉快照</summary><pre>{{ JSON.stringify(plan, null, 2) }}</pre></details>
-    <details><summary>查看历史版本</summary>
+    <details v-if="!readonly"><summary>查看历史版本</summary>
       <details v-for="version in versions" :key="version.id"><summary>第 {{ version.version }} 版 · {{ version.content.title }}</summary>
-        <pre>{{ JSON.stringify(version.content, null, 2) }}</pre>
+        <p>{{ version.content.goal }}</p><p>{{ version.content.visual }}</p>
+        <ol><li v-for="item in version.content.items" :key="item.id"><strong>{{ item.title }}</strong><p>{{ item.copy }}</p><p>{{ item.description }}</p><p>{{ item.requirements }}</p></li></ol>
         <button type="button" :disabled="disabled" @click="$emit('select', version.id)">复制第 {{ version.version }} 版为当前计划</button>
       </details>
     </details>
+    <template v-if="!readonly">
     <p v-if="stale" role="status">输入或配置已变化，请更新计划。</p>
     <label>修改意见<textarea :value="feedback" :disabled="disabled" maxlength="4000" @input="$emit('update:feedback', ($event.target as HTMLTextAreaElement).value)" /></label>
     <button type="button" :disabled="disabled || !feedback.trim()" @click="$emit('revise')">按意见修改计划</button>
-    <button type="button" :disabled="disabled || stale || !!feedback.trim() || !!plan.confirmed_at" @click="$emit('confirm')">确认计划，生成 {{ plan.content.items.length }} 张</button>
+    <button type="button" class="confirm-plan" :disabled="disabled || stale || !!feedback.trim() || !!plan.confirmed_at" @click="$emit('confirm')">确认计划，生成 {{ plan.content.items.length }} 张</button>
     <p v-if="feedback.trim()" class="input-hint">请先应用或清空修改意见，再确认计划。</p>
+    </template>
   </section>
 </template>
+<style scoped>
+.plan-panel { overflow-wrap: anywhere; }
+.plan-panel h3 { font-size: 17px; }
+.plan-panel p { margin-block: 8px; line-height: 1.7; }
+.plan-panel li { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.plan-panel details { margin-block: 12px; }
+.plan-panel button { margin: 8px 8px 0 0; }
+.confirm-plan { background: var(--green); color: white; }
+</style>

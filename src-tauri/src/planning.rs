@@ -208,6 +208,16 @@ pub fn validate(c: &Content, d: &Draft) -> Result<()> {
 }
 
 impl Store {
+    pub fn assert_draft_editable(&self, draft_id: &str) -> Result<()> {
+        if self
+            .records::<crate::jobs::Job>("generation_jobs")?
+            .iter()
+            .any(|j| j.draft_id == draft_id)
+        {
+            return Err("本次输入已固定，请使用‘以此新建’继续创作".into());
+        }
+        Ok(())
+    }
     pub fn draft(&self, id: &str) -> Result<Draft> {
         self.record("creation_drafts", id)
     }
@@ -260,8 +270,12 @@ impl Store {
             return Err("无效草稿".into());
         }
         let mut d = if let Some(id) = old {
+            self.assert_draft_editable(&id)?;
             self.draft(&id)?
         } else {
+            if prompt.trim().is_empty() {
+                return Err("空白创作不保存".into());
+            }
             Draft {
                 id: id(),
                 mode: mode.clone(),
@@ -300,6 +314,7 @@ impl Store {
         Ok(())
     }
     pub fn save_plan(&self, d: &Draft, content: Content, parent: Option<String>) -> Result<Plan> {
+        self.assert_draft_editable(&d.id)?;
         validate(&content, d)?;
         let tx = self.db.unchecked_transaction().map_err(|e| e.to_string())?;
         let mut current = self.draft(&d.id)?;
@@ -342,6 +357,7 @@ impl Store {
             .map_err(|e| e.to_string())?;
         current.current_plan_id = Some(p.id.clone());
         current.feedback_draft.clear();
+        current.updated_at = now();
         self.put_draft(&current)?;
         tx.commit().map_err(|e| e.to_string())?;
         Ok(p)

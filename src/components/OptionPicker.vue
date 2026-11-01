@@ -8,6 +8,7 @@ const props = defineProps<{
   options: GenerationOption[]
   modelValue?: string
   disabled?: boolean
+  idPrefix?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | undefined] }>()
 const query = ref('')
@@ -46,12 +47,12 @@ function choose(id?: string) {
 <template>
   <div class="picker-content">
       <div class="picker-tools">
-        <label for="catalog-search"><span class="visually-hidden">搜索编号、名称或分类</span>
-          <input id="catalog-search" v-model="query" :disabled="disabled" type="search" autocomplete="off" placeholder="搜索名称或编号" />
+        <label :for="`${idPrefix ?? ''}catalog-search`"><span class="visually-hidden">搜索编号、名称或分类</span>
+          <input :id="`${idPrefix ?? ''}catalog-search`" v-model="query" :disabled="disabled" type="search" autocomplete="off" placeholder="搜索名称或编号" />
         </label>
       </div>
-    <div :id="`${category}-panel`" ref="scrollArea" class="option-picker" :data-category="category"
-      role="tabpanel" tabindex="0" :aria-labelledby="`${category}-tab`">
+    <div :id="`${idPrefix ?? ''}${category}-panel`" ref="scrollArea" class="option-picker" :data-category="category"
+      :role="idPrefix ? 'region' : 'tabpanel'" tabindex="0" :aria-label="idPrefix ? label : undefined" :aria-labelledby="idPrefix ? undefined : `${category}-tab`">
     <fieldset :disabled="disabled">
       <legend class="visually-hidden">{{ label }}</legend>
       <div class="option-grid">
