@@ -5,7 +5,9 @@ import { clearMocks, mockIPC } from '@tauri-apps/api/mocks'
 import App from '../src/App.vue'
 import type { Draft, Item, JobSnapshot, Library, Notice, Plan } from '../src/services/creation'
 import { acceptSnapshot } from '../src/services/creation'
-import { generationOptions } from '../src/services/generationOptions'
+import { generationOptions, optionCategories } from '../src/services/generationOptions'
+import GalleryView from '../src/components/GalleryView.vue'
+import type { Artwork } from '../src/services/gallery'
 vi.mock('@tauri-apps/api/core', { spy: true })
 const events = vi.hoisted(() => ({ change: undefined as undefined | ((event: { payload: Notice }) => void) }))
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, fn: typeof events.change) => { if (name === 'creation-changed') events.change = fn; return () => {} }) }))
@@ -75,6 +77,66 @@ function backend() {
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it('shows thumbnails and names for each preference, replaces them and clears only the chosen category', async () => {
+    backend(); const w = await open()
+    for (const { key } of optionCategories) {
+      const row = w.get(`[data-selection="${key}"]`)
+      expect(row.text()).toContain('自动')
+      expect(row.find('img').exists()).toBe(false)
+      await w.get(`#${key}-tab`).trigger('click')
+      for (const option of generationOptions[key].slice(0, 2)) {
+        await w.get(`[data-option="${option.id}"]`).trigger('click')
+        expect(row.get('.selection-name').text()).toBe(option.name)
+        expect(row.get('img').attributes('src')).toBe(option.image)
+        expect(row.get('img').attributes('alt')).toBe(`${option.name}预览`)
+        expect(row.text()).not.toContain('自动')
+      }
+    }
+    await w.get('[data-selection="layout"] .clear-selection').trigger('click')
+    const cleared = w.get('[data-selection="layout"]')
+    expect(cleared.text()).toContain('自动')
+    expect(cleared.find('img').exists()).toBe(false)
+    expect(cleared.find('.selection-name').exists()).toBe(false)
+    expect(cleared.find('.clear-selection').exists()).toBe(false)
+    for (const key of ['style', 'color'] as const) {
+      expect(w.get(`[data-selection="${key}"] .selection-name`).text()).toBe(generationOptions[key][1]!.name)
+    }
+    await w.get('#catalog-search').setValue('no matching option')
+    await w.get('[data-selection="style"] .selection-link').trigger('click'); await flushPromises()
+    expect(w.get('#style-tab').attributes('aria-selected')).toBe('true')
+    expect(w.get(`[data-option="${generationOptions.style[1]!.id}"]`).attributes('aria-pressed')).toBe('true')
+    expect(w.get<HTMLInputElement>('#catalog-search').element.value).toBe('')
+  })
+  it('keeps the selected name when an image fails and displays the next selection preview', async () => {
+    backend(); const w = await open()
+    await w.get('[data-option="FA-001"]').trigger('click')
+    const row = w.get('[data-selection="style"]')
+    await row.get('img').trigger('error')
+    expect(row.find('img').exists()).toBe(false)
+    expect(row.get('.selection-name').text()).toBe(generationOptions.style[0]!.name)
+    expect(row.find('.selection-placeholder').exists()).toBe(true)
+    await w.get(`[data-option="${generationOptions.style[1]!.id}"]`).trigger('click')
+    expect(row.get('img').attributes('src')).toBe(generationOptions.style[1]!.image)
+  })
+  it('uses local previews with saved names and keeps removed saved options readable and clearable', async () => {
+    backend(); const w = await open()
+    await button(w, '我的图库').trigger('click'); await flushPromises()
+    w.getComponent(GalleryView).vm.$emit('reuse', {
+      id: 'saved-artwork', prompt: '旧作品', snapshot: { ...visual,
+        style: { id: generationOptions.style[0]!.id, name: '保存的风格名称', prompt: '原始规范' },
+        layout: { id: 'removed-layout', name: '已下架的排版', prompt: '原始排版规范' },
+      },
+    } as Artwork)
+    await flushPromises()
+    const style = w.get('[data-selection="style"]'), layout = w.get('[data-selection="layout"]')
+    expect(style.get('.selection-name').text()).toBe('保存的风格名称')
+    expect(style.get('img').attributes('src')).toBe(generationOptions.style[0]!.image)
+    expect(layout.get('.selection-name').text()).toBe('已下架的排版')
+    expect(layout.find('img').exists()).toBe(false)
+    await layout.get('.clear-selection').trigger('click')
+    expect(layout.text()).toContain('自动')
+    expect(style.get('.selection-name').text()).toBe('保存的风格名称')
+  })
   it.each([false, true])('starts with editable previous input and generates a separate job without changing history (edit: %s)', async (edit) => {
     const b = backend(), w = await open()
     await w.get('#prompt').setValue('窗边的小猫')
@@ -91,7 +153,8 @@ describe('persistent two-mode workspace', () => {
     expect(restored.get('[role="switch"]').attributes('disabled')).toBeUndefined()
     expect(restored.get('.catalog-panel fieldset').attributes('disabled')).toBeUndefined()
     for (const key of ['style', 'layout', 'color'] as const) {
-      expect(restored.get(`[data-selection="${key}"]`).text()).toContain(j.input!.snapshot[key]!.id)
+      expect(restored.get(`[data-selection="${key}"] .selection-name`).text()).toBe(j.input!.snapshot[key]!.name)
+      expect(restored.get(`[data-selection="${key}"] img`).attributes('src')).toBe(generationOptions[key][0]!.image)
     }
     expect(restored.get('.generation-action button[type="submit"]').text()).toBe('生成图片 ↗')
     expect(restored.get('.generation-action button[type="submit"]').attributes('disabled')).toBeUndefined()
@@ -304,7 +367,7 @@ describe('persistent two-mode workspace', () => {
   it('preserves selections through modes and catalog keyboard navigation', async () => {
     backend(); const w = await open()
     await w.get('#prompt').setValue('猫'); await w.get('[data-option="FA-001"]').trigger('click'); await w.get('[role="switch"]').trigger('click'); await flushPromises(); await w.get('[role="switch"]').trigger('click')
-    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('猫'); expect(w.get('[data-selection="style"]').text()).toContain(generationOptions.style[0]!.id)
+    expect(w.get<HTMLTextAreaElement>('#prompt').element.value).toBe('猫'); expect(w.get('[data-selection="style"] .selection-name').text()).toBe(generationOptions.style[0]!.name)
     await w.get('.catalog-tabs').trigger('keydown', { key: 'ArrowRight' }); expect(w.get('#layout-tab').attributes('aria-selected')).toBe('true')
     await w.get('[data-selection="style"] .selection-link').trigger('click'); await flushPromises(); expect(document.activeElement).toBe(w.get('#style-tab').element)
     await w.get('[aria-label="清除风格选择"]').trigger('click'); expect(w.get('[data-selection="style"]').text()).toContain('自动')

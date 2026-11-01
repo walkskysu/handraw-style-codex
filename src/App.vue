@@ -32,11 +32,16 @@ const categoryIcons = { style: '✳', layout: '▤', color: '◐' }
 const picker = ref<InstanceType<typeof OptionPicker> | null>(null)
 const previewDialog = ref<HTMLDialogElement | null>(null)
 let previewTrigger: HTMLElement | null = null
-const selectedOptions = computed(() => Object.fromEntries(optionCategories.map(({ key }) =>
-  [key, reused.value?.snapshot[key]?.id === selections.value[key] && reused.value?.snapshot[key]
-    ? reused.value.snapshot[key]
-    : generationOptions[key].find((option) => option.id === selections.value[key])],
-)))
+const failedPreviews = ref(new Set<string>())
+const selectionRows = computed(() => optionCategories.map(({ key }) => {
+  const option = generationOptions[key].find((option) => option.id === selections.value[key])
+  const snapshot = reused.value?.snapshot[key]
+  // Saved options retain their original names; previews come from the local catalog.
+  return { key, option: snapshot && snapshot.id === selections.value[key]
+    ? { ...snapshot, image: option?.image }
+    : option }
+}))
+function markPreviewFailed(image?: string) { if (image) failedPreviews.value.add(image) }
 async function openCatalog(category: OptionCategory) {
   activeCategory.value = category; await nextTick(); await picker.value?.reveal(selections.value[category])
   document.getElementById(category + '-tab')?.focus()
@@ -111,14 +116,28 @@ function showGallery(groupId: string) { changeView('gallery', groupId) }
             <div class="section-heading">
               <h2>画面偏好 <span class="optional-label">· 可选</span></h2>
             </div>
-            <div v-for="category in optionCategories" :key="category.key" class="selection-row" :data-selection="category.key">
+            <div v-for="category in selectionRows" :key="category.key" class="selection-row"
+              :class="{ 'has-selection': category.option }" :data-selection="category.key">
               <button type="button" class="selection-link" :disabled="frozen"
-                :title="selectedOptions[category.key]?.name ?? '按描述自动选择'" @click="openCatalog(category.key)">
-                <span class="selection-placeholder" aria-hidden="true">{{ categoryIcons[category.key] }}</span>
-                <span>{{ categoryLabels[category.key] }}</span>
-                <span class="selection-value">{{ selectedOptions[category.key]?.id ?? '自动' }}</span><span aria-hidden="true">›</span>
+                :title="category.option?.name ?? '按描述自动选择'" @click="openCatalog(category.key)">
+                <template v-if="category.option">
+                  <img v-if="category.option.image && !failedPreviews.has(category.option.image)"
+                    :key="category.option.image" class="selection-thumbnail"
+                    :src="category.option.image" :alt="`${category.option.name}预览`"
+                    @error="markPreviewFailed(category.option?.image)" />
+                  <span v-else class="selection-placeholder selection-thumbnail" aria-hidden="true">{{ categoryIcons[category.key] }}</span>
+                  <span class="selection-details">
+                    <span class="selection-label">{{ categoryLabels[category.key] }}</span>
+                    <strong class="selection-name">{{ category.option.name }}</strong>
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="selection-placeholder" aria-hidden="true">{{ categoryIcons[category.key] }}</span>
+                  <span>{{ categoryLabels[category.key] }}</span>
+                  <span class="selection-value">自动</span><span aria-hidden="true">›</span>
+                </template>
               </button>
-              <button v-if="selectedOptions[category.key]" type="button" class="clear-selection"
+              <button v-if="category.option" type="button" class="clear-selection"
                 :aria-label="`清除${categoryLabels[category.key]}选择`" :disabled="pending || frozen"
                 @click="clearSelection(category.key)">×</button>
             </div>
