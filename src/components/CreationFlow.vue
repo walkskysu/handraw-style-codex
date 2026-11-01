@@ -146,11 +146,10 @@ async function loadDraft(d?: api.Draft) {
   const panel = detail.value?.closest('.preview-panel')
   if (panel) panel.scrollTop = 0
 }
-async function openJob(id: string, onlyIfPristine = false) {
+async function openJob(id: string) {
   const epoch = selectionSequence
   const result = await api.snapshot(id)
   if (disposed || epoch !== selectionSequence) return
-  if (onlyIfPristine && (current.value || props.prompt.trim() || dirty.value || showLibrary.value)) return
   await loadDraft(result.input ?? all.value.drafts.find(d => d.id === result.draft_id))
   job.value = result
 }
@@ -161,14 +160,25 @@ async function newTask(copy = false) {
   await flushEditor()
   const source = copy ? job.value?.input ?? current.value : undefined
   const sourceJob = copy ? job.value?.id : undefined
+  await copyInput(source, sourceJob)
+  if (source) { dirty.value = true; await persist() }
+}
+async function copyInput(source?: api.Draft, sourceJob?: string) {
   await loadDraft()
   if (source) {
     restoring = true
     mode.value = source.mode; count.value = source.requested_count
     emit('restore', source.prompt, selectionsOf(source))
     await nextTick(); restoring = false; copiedJob.value = sourceJob
-    dirty.value = true; await persist()
   }
+}
+async function restoreStartupInput(id: string) {
+  const epoch = selectionSequence
+  const result = await api.snapshot(id)
+  if (disposed || epoch !== selectionSequence || current.value || props.prompt.trim() || dirty.value || showLibrary.value) return
+  // Keep the previous input ready for a new creation, without selecting its
+  // frozen execution or writing a duplicate draft just because the app opened.
+  await copyInput(result.input ?? all.value.drafts.find(d => d.id === result.draft_id), result.id)
 }
 async function submit() {
   if (busy.value || frozen.value || props.locked || !props.prompt.trim() || !isDesktop()) return
@@ -227,9 +237,9 @@ onMounted(async () => {
     await refresh()
     if (disposed) { unlisten?.(); closeListener?.(); return }
     // Startup I/O may finish after the user has begun typing or opened a task.
-    // Restoring a historical execution must never replace those newer edits.
+    // Restoring previous input must never replace those newer edits.
     const latest = all.value.jobs[0]
-    if (latest && !current.value && !props.prompt.trim() && !dirty.value && !showLibrary.value) await openJob(latest.id, true)
+    if (latest && !current.value && !props.prompt.trim() && !dirty.value && !showLibrary.value) await restoreStartupInput(latest.id)
     timer = setInterval(() => { void refresh().catch(e => { error.value = message(e) }) }, 2500)
   } catch (e) { error.value = message(e) }
 })
