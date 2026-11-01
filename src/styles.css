@@ -49,7 +49,12 @@ textarea::placeholder { color: #929891; }
 .selection-link { display: flex; align-items: center; flex: 1; gap: 12px; min-width: 0; padding: 10px 0; border: 0; text-align: left; background: transparent; font-size: 14px; }
 .selection-placeholder { width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center; background: #f1f4ed; color: #789184; font-size: 18px; }
 .selection-value { margin-left: auto; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.clear-selection { padding: 4px; border: 0; background: transparent; color: var(--muted); font-size: 18px; }
+.selection-row.has-selection { gap: 4px; margin: 10px 0; padding: 0 8px; border: 1px solid var(--border); border-radius: 9px; background: #f9faf7; }
+.selection-thumbnail { width: 48px; height: 48px; flex-shrink: 0; border-radius: 6px; object-fit: contain; background: #f1f2ec; }
+.selection-details { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.selection-label { color: var(--muted); font-size: 12px; }
+.selection-name { font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.clear-selection { flex-shrink: 0; min-width: 28px; min-height: 32px; padding: 4px; border: 0; background: transparent; color: var(--muted); font-size: 18px; }
 .input-hint, .preview-hint { color: var(--muted); font-size: 12px; line-height: 1.7; }
 .generation-action { margin-top: auto; padding-top: 18px; position: sticky; bottom: 0; background: white; z-index: 1; }
 .generation-action button { width: 100%; padding: 14px; font-size: 14px; font-weight: 650; background: var(--green); border-color: var(--green); color: white; border-radius: 9px; }

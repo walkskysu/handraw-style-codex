@@ -46,6 +46,9 @@ for (const viewport of [
       await expect(panel.locator('.option-card').last()).toHaveAttribute('data-option', catalog[category].at(-1)!.id)
       await panel.locator('.option-card').last().click()
       await expect(panel.locator('.option-card').last()).toHaveAttribute('aria-pressed', 'true')
+      const preference = page.locator(`[data-selection="${category}"]`)
+      await expect(preference.locator('.selection-name')).toHaveText(catalog[category].at(-1)!.name)
+      await expect.poll(() => preference.locator('img').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true)
       await page.locator('#catalog-search').fill('no matching option')
       await expect(panel.locator('.input-hint')).toBeVisible()
       await expect.poll(() => panel.evaluate((el) => el.scrollTop)).toBe(0)
@@ -68,6 +71,34 @@ for (const viewport of [
     await expect(navigation.getByRole('button', { name: '创作', exact: true })).toBeInViewport()
     await expect(navigation.getByRole('button', { name: '我的图库', exact: true })).toBeInViewport()
     await expectNoDocumentScroll(page)
+  })
+}
+
+for (const width of [1100, 640, 360]) {
+  test(`selected preference names wrap without hiding thumbnails or clear controls at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 760 })
+    await page.goto('/')
+    for (const category of ['style', 'layout', 'color'] as const) {
+      const option = [...catalog[category]].sort((a, b) => b.name.length - a.name.length)[0]!
+      await page.locator(`#${category}-tab`).click()
+      await page.locator('#catalog-search').fill(option.id)
+      await page.locator(`[data-option="${option.id}"]`).click()
+      const row = page.locator(`[data-selection="${category}"]`)
+      await row.scrollIntoViewIfNeeded()
+      await expect(row.locator('.selection-name')).toHaveText(option.name)
+      await expect(row.locator('img')).toBeInViewport()
+      await expect(row.locator('.clear-selection')).toBeInViewport()
+      expect(await row.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+      const name = (await row.locator('.selection-name').boundingBox())!
+      const clear = (await row.locator('.clear-selection').boundingBox())!
+      expect(name.x + name.width).toBeLessThanOrEqual(clear.x)
+    }
+    await expectNoDocumentScroll(page)
+    await page.screenshot({ path: testInfo.outputPath('selected-preferences.png') })
+    await page.locator('[data-selection="layout"] .clear-selection').click()
+    await expect(page.locator('[data-selection="layout"]')).toContainText('自动')
+    await expect(page.locator('[data-selection="layout"] img')).toHaveCount(0)
+    await expect(page.locator('.selection-thumbnail')).toHaveCount(2)
   })
 }
 
