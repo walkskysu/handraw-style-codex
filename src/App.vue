@@ -31,7 +31,6 @@ const categoryLabels = { style: '风格', layout: '排版', color: '配色' }
 const categoryIcons = { style: '✳', layout: '▤', color: '◐' }
 const picker = ref<InstanceType<typeof OptionPicker> | null>(null)
 const previewDialog = ref<HTMLDialogElement | null>(null)
-const previewOpen = ref(false)
 let previewTrigger: HTMLElement | null = null
 const selectedOptions = computed(() => Object.fromEntries(optionCategories.map(({ key }) =>
   [key, reused.value?.snapshot[key]?.id === selections.value[key] && reused.value?.snapshot[key]
@@ -42,10 +41,8 @@ async function openCatalog(category: OptionCategory) {
   activeCategory.value = category; await nextTick(); await picker.value?.reveal(selections.value[category])
   document.getElementById(category + '-tab')?.focus()
 }
-function openPreview(event: Event) { previewTrigger = event.currentTarget as HTMLElement; previewDialog.value?.showModal(); previewOpen.value = true; void flow.value?.openLibrary() }
 function closePreview() {
-  previewOpen.value = false
-  if (previewTrigger?.matches(':disabled')) document.querySelector<HTMLElement>('.open-preview')?.focus()
+  if (previewTrigger && (!previewTrigger.isConnected || previewTrigger.matches(':disabled'))) document.querySelector<HTMLElement>('.app-navigation button')?.focus()
   else previewTrigger?.focus()
 }
 function moveTab(event: KeyboardEvent) {
@@ -59,7 +56,7 @@ function clearSelection(category: OptionCategory) { if (!pending.value && !froze
 async function generate() {
   if (pending.value || frozen.value || updateLocked.value || !prompt.value.trim() || !desktop) return
   previewTrigger = actions.value?.querySelector('button[type="submit"]') ?? null
-  previewDialog.value?.showModal(); previewOpen.value = true
+  previewDialog.value?.showModal()
   await flow.value?.submit()
 }
 function requestReuse(artwork: Artwork) {
@@ -90,7 +87,6 @@ function showGallery(groupId: string) { changeView('gallery', groupId) }
       <nav class="app-navigation" aria-label="工作区">
         <button type="button" :aria-current="view === 'workspace' ? 'page' : undefined" @click="changeView('workspace')">创作</button>
         <button type="button" :aria-current="view === 'gallery' ? 'page' : undefined" @click="changeView('gallery')">我的图库</button>
-        <button type="button" class="open-preview" aria-haspopup="dialog" aria-controls="preview-dialog" :aria-expanded="previewOpen" @click="openPreview">创作任务<span v-if="pending" class="task-indicator" role="status"> · 处理中</span></button>
       </nav>
       <AboutSettings :working="pending" :unsaved="hasUnsaved" @lock="updateLocked = $event" />
     </header>
