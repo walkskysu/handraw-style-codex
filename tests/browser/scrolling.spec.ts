@@ -55,7 +55,7 @@ for (const viewport of [
       await expect(panel.locator('.option-card').last()).toHaveAttribute('aria-pressed', 'true')
     }
 
-    // Short and stacked layouts must still expose creation controls and preview.
+    // Short and stacked layouts must still expose creation controls and navigation.
     await page.locator('.creation-panel button[type="submit"]').scrollIntoViewIfNeeded()
     await expect(page.locator('.creation-panel button[type="submit"]')).toBeInViewport()
     if (viewport.width < 640) {
@@ -63,15 +63,11 @@ for (const viewport of [
       const catalog = await page.locator('.catalog-panel').boundingBox()
       expect(catalog!.y).toBeGreaterThanOrEqual(creation!.y + creation!.height)
     }
-    await page.locator('.open-preview').click()
-    await expect(page.getByRole('searchbox', { name: '搜索创作任务' })).toBeInViewport()
-    await expect(page.getByRole('button', { name: '待处理', exact: true })).toBeVisible()
+    const navigation = page.getByRole('navigation', { name: '工作区', exact: true })
+    await expect(navigation.getByRole('button')).toHaveText(['创作', '我的图库'])
+    await expect(navigation.getByRole('button', { name: '创作', exact: true })).toBeInViewport()
+    await expect(navigation.getByRole('button', { name: '我的图库', exact: true })).toBeInViewport()
     await expectNoDocumentScroll(page)
-    {
-      await page.keyboard.press('Escape')
-      await expect(page.locator('#preview-dialog')).not.toBeVisible()
-      await expect(page.locator('.open-preview')).toBeFocused()
-    }
   })
 }
 
@@ -111,27 +107,41 @@ for (const width of [1920, 1659, 1440, 1399, 1200, 1100]) {
 }
 
 test('resizing preserves selection and the independent task panel, with focus returned on close', async ({ page }) => {
+  // A failed save leaves the submit control available for reopening the panel.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'isTauri', { value: true })
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
+      invoke: async (command: string) => {
+        if (command === 'job_list') return { drafts: [], plans: [], planning_jobs: [], jobs: [] }
+        throw new Error('保存失败')
+      },
+    } })
+  })
   await page.setViewportSize({ width: 1199, height: 760 })
   await page.goto('/')
   await page.locator('#color-tab').click()
   await page.locator('[data-option="C-36"]').click()
-  await page.locator('.open-preview').click()
+  await page.locator('#prompt').fill('窗边的小猫')
+  const submit = page.locator('.creation-panel button[type="submit"]')
+  await submit.click()
   await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.locator('#preview-dialog')).toContainText('保存失败')
   await expect(page.locator('.close-preview')).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(page.locator('#prompt')).not.toBeFocused()
   await page.setViewportSize({ width: 1440, height: 760 })
   await expect(page.locator('#preview-dialog')).toBeVisible()
   await page.locator('.close-preview').click()
-  await expect(page.locator('.open-preview')).toBeFocused()
+  await expect(submit).toBeFocused()
   await expect(page.locator('.preview-panel')).not.toBeVisible()
   await expect(page.locator('#color-tab')).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('[data-option="C-36"]')).toHaveAttribute('aria-pressed', 'true')
   // Responsive column counts change pixel offsets; the current selection stays visible.
   await expect(page.locator('[data-option="C-36"]')).toBeInViewport()
   expect(await page.getByRole('tabpanel').evaluate(el => el.scrollTop)).toBeGreaterThan(0)
-  await page.locator('.open-preview').click()
+  await submit.click()
+  await expect(page.locator('#preview-dialog')).toContainText('保存失败')
   await page.keyboard.press('Escape')
-  await expect(page.locator('.open-preview')).toBeFocused()
+  await expect(submit).toBeFocused()
   await expectNoDocumentScroll(page)
 })

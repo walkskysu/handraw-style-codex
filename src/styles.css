@@ -107,11 +107,9 @@ textarea::placeholder { color: #929891; }
 .preview-dialog .preview-panel { height: 100%; border: 0; border-radius: 0; }
 .preview-dialog .preview-panel > .section-heading { position: sticky; top: -24px; z-index: 2; padding-block: 12px; background: white; }
 .close-preview { padding: 4px 12px; font-size: 24px; }
-.open-preview { font-size: 12px; color: var(--green); padding: 7px 9px; }
 .app-navigation { display: flex; align-self: stretch; gap: 22px; }
 .app-navigation button { padding: 8px 6px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; white-space: nowrap; background: transparent; color: var(--muted); font-size: 14px; }
 .app-navigation [aria-current="page"] { color: var(--green); border-bottom-color: var(--green); }
-.task-indicator { color: var(--green); font-size: 12px; }
 .gallery-view { flex: 1; min-height: 0; overflow: auto; margin: 26px 42px 28px; }
 .gallery-tools, .gallery-pagination, .artwork-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .gallery-tools { margin-bottom: 20px; }
