@@ -1,8 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { OptionCategory } from './generationOptions'
+import type { Reference } from './referenceImages'
 
 export interface SnapshotOption { id: string; name: string; prompt: string }
-export type Snapshot = Record<OptionCategory, SnapshotOption | null> & { catalog_version: string }
+export type Snapshot = Record<OptionCategory, SnapshotOption | null> & { catalog_version: string; reference_images?: Reference[] }
 export interface Artwork {
   availability?: 'available' | 'missing'
   id: string

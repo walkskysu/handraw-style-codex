@@ -1,7 +1,7 @@
 import catalog from '../data/generationCatalog.json'
 
 export type OptionCategory = 'style' | 'layout' | 'color'
-export type GenerationSelections = Partial<Record<OptionCategory, string>>
+export type GenerationSelections = Partial<Record<OptionCategory, string>> & { reference_images?: string[] }
 export interface GenerationOption {
   id: string
   name: string

@@ -50,7 +50,7 @@ pub fn draft_update(app: tauri::AppHandle, input: DraftInput) -> Result<Draft> {
             .as_ref()
             .map(|id| store.snapshot_job(id))
             .transpose()?;
-        let snapshot = options::snapshot(
+        let mut snapshot = options::snapshot(
             &input.selections,
             previous
                 .as_ref()
@@ -61,6 +61,10 @@ pub fn draft_update(app: tauri::AppHandle, input: DraftInput) -> Result<Draft> {
                         .as_ref()
                         .and_then(|j| j.job.input.as_ref().map(|d| &d.snapshot))
                 }),
+        )?;
+        snapshot.reference_images = crate::references::resolve(
+            &store.path("references")?,
+            &input.selections.reference_images,
         )?;
         let tx = store
             .db
@@ -244,6 +248,7 @@ fn launch(app: tauri::AppHandle, j: Job, model: GenerationGuard, work: WorkGuard
     tauri::async_runtime::spawn_blocking(move || {
         let _work = work;
         let run: Result<()> = (|| {
+            let reference_root = with_gallery(&app, |s| s.store(&app)?.path("references"))?;
             loop {
                 let next = with_gallery(&app, |s| s.store(&app)?.next_item(&j.id))?;
                 let Some((item, attempt)) = next else {
@@ -251,7 +256,7 @@ fn launch(app: tauri::AppHandle, j: Job, model: GenerationGuard, work: WorkGuard
                 };
                 notify_item(&app, &j.id, "item_started", Some(&item));
                 let result = model
-                    .generate(&item.prompt, &item.snapshot)
+                    .generate(&item.prompt, &item.snapshot, &reference_root)
                     .and_then(|output| {
                         let mut p = PendingArtwork::new(
                             &output.image,
