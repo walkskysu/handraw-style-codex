@@ -130,7 +130,7 @@ for (const width of [1920, 1659, 1440, 1399, 1200, 1100]) {
     expect(catalog.y).toBe(creation.y)
     const tabs = (await page.locator('.catalog-tabs').boundingBox())!
     const search = (await page.locator('#catalog-search').boundingBox())!
-    if (width >= 1200) expect(tabs.x + tabs.width).toBeLessThanOrEqual(search.x)
+    expect(search.y).toBeGreaterThanOrEqual(tabs.y + tabs.height)
     await page.locator('[data-option="FA-001"]').click()
     await expectNoDocumentScroll(page)
     if (width === 1440) await page.screenshot({ path: testInfo.outputPath('ideacanvas-workspace.png') })

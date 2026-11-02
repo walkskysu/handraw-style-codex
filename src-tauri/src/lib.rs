@@ -8,6 +8,7 @@ mod jobs;
 mod migrations;
 mod options;
 mod planning;
+mod references;
 mod updates;
 
 use std::{collections::HashMap, sync::Mutex};
@@ -384,6 +385,8 @@ pub fn run() {
             updates::UpdateState::default(),
         ))
         .invoke_handler(tauri::generate_handler![
+            references::reference_list,
+            references::reference_import,
             creation::draft_update,
             creation::job_list,
             creation::job_get,

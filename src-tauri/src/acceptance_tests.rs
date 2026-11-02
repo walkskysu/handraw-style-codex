@@ -22,6 +22,114 @@ fn draft(s: &Store, mode: &str, count: Option<usize>) -> Draft {
     )
     .unwrap()
 }
+
+#[test]
+fn references_survive_restart_planned_and_quick_jobs_and_retry_while_edits_invalidate_plans() {
+    for mode in ["quick", "planned"] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("references");
+        let data = format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(include_bytes!("../icons/icon.png"))
+        );
+        let person = crate::references::import_data(&root, "人物.png", &data)
+            .unwrap()
+            .reference;
+        let style = crate::references::import_data(&root, "风格.png", &data)
+            .unwrap()
+            .reference;
+        let snapshot = Snapshot {
+            reference_images: vec![person.clone(), style.clone()],
+            ..Default::default()
+        };
+        let s = Store::open(dir.path().into()).unwrap();
+        let d = s
+            .save_draft(
+                None,
+                mode.into(),
+                "参考图 1 的人物，参考图 2 的风格".into(),
+                snapshot.clone(),
+                Some(1),
+                "".into(),
+                None,
+            )
+            .unwrap();
+        drop(s);
+        let s = Store::open(dir.path().into()).unwrap();
+        assert_eq!(
+            s.draft(&d.id).unwrap().snapshot.reference_images,
+            snapshot.reference_images
+        );
+        let p = if mode == "planned" {
+            Some(s.save_plan(&d, content(1), None).unwrap())
+        } else {
+            None
+        };
+        let j = s
+            .start_job(
+                &d.id,
+                d.input_revision,
+                p.as_ref().map(|p| (p.id.as_str(), p.content_hash.as_str())),
+                "start",
+            )
+            .unwrap();
+        let (item, attempt) = s.next_item(&j.id).unwrap().unwrap();
+        assert_eq!(item.snapshot.reference_images, snapshot.reference_images);
+        s.fail_item(&item, &attempt, "test failure".into(), false)
+            .unwrap();
+        drop(s);
+        let s = Store::open(dir.path().into()).unwrap();
+        let j = s.job(&j.id).unwrap();
+        s.resume_job(&j.id, j.revision, Some((&item.id, item.attempt_no)))
+            .unwrap();
+        let (retry, _) = s.next_item(&j.id).unwrap().unwrap();
+        assert_eq!(retry.snapshot.reference_images, snapshot.reference_images);
+        let workspace = tempfile::tempdir().unwrap();
+        assert_eq!(
+            crate::references::prepare(&root, workspace.path(), &retry.snapshot.reference_images)
+                .unwrap()
+                .len(),
+            2
+        );
+        // A separate draft can change references without changing the historical execution.
+        let copied = s
+            .save_draft(
+                None,
+                "planned".into(),
+                d.prompt.clone(),
+                snapshot.clone(),
+                Some(1),
+                "".into(),
+                None,
+            )
+            .unwrap();
+        let plan = s.save_plan(&copied, content(1), None).unwrap();
+        let edited = s
+            .save_draft(
+                Some(copied.id),
+                "planned".into(),
+                d.prompt.clone(),
+                Snapshot {
+                    reference_images: vec![style],
+                    ..snapshot
+                },
+                Some(1),
+                "".into(),
+                Some(copied.input_revision),
+            )
+            .unwrap();
+        assert!(edited.input_revision > copied.input_revision);
+        assert!(s
+            .start_job(
+                &edited.id,
+                edited.input_revision,
+                Some((&plan.id, &plan.content_hash)),
+                "stale"
+            )
+            .is_err());
+        assert_eq!(s.item(&item.id).unwrap().snapshot.reference_images.len(), 2);
+    }
+}
 fn content(n: usize) -> Content {
     Content {
         title: "猫咪".into(),

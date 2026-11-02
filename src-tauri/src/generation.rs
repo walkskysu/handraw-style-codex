@@ -50,7 +50,12 @@ impl GenerationGuard {
         )
     }
 
-    pub fn generate(&self, prompt: &str, snapshot: &Snapshot) -> Result<Output, String> {
+    pub fn generate(
+        &self,
+        prompt: &str,
+        snapshot: &Snapshot,
+        reference_root: &Path,
+    ) -> Result<Output, String> {
         // Planned prompts include frozen copy and common requirements, beyond the input limit.
         let prompt = prompt.trim();
         if prompt.is_empty() || prompt.len() > 128 * 1024 {
@@ -64,6 +69,12 @@ impl GenerationGuard {
             .tempdir()
             .map_err(|e| format!("无法创建图片生成目录：{e}"))?;
         let mut command = codex_command(&executable);
+        let files = crate::references::prepare(
+            reference_root,
+            workspace.path(),
+            &snapshot.reference_images,
+        )?;
+        attach_references(&mut command, &files);
         let image = run_generation(&mut command, workspace.path(), &description, TIMEOUT)?;
         Ok(Output {
             image,
@@ -258,6 +269,12 @@ fn codex_command(executable: &Path) -> Command {
     command
 }
 
+fn attach_references(command: &mut Command, files: &[String]) {
+    for file in files {
+        command.arg("--image").arg(file);
+    }
+}
+
 fn hide_window(command: &mut Command) {
     #[cfg(windows)]
     {
@@ -421,6 +438,54 @@ mod tests {
         assert!(parse_version("codex-cli 1.0\nsecret").is_none());
     }
 
+    #[test]
+    fn attaches_each_selected_file_and_maps_reference_numbers_in_the_prompt() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("references");
+        let data = format!("data:image/png;base64,{}", STANDARD.encode(PNG));
+        let references = ["人物 & %PATH%.png", "风格.png"]
+            .iter()
+            .map(|name| {
+                crate::references::import_data(&root, name, &data)
+                    .unwrap()
+                    .reference
+            })
+            .collect::<Vec<_>>();
+        let snapshot = Snapshot {
+            reference_images: references,
+            ..Default::default()
+        };
+        let workspace = tempfile::Builder::new()
+            .prefix("references with spaces ")
+            .tempdir()
+            .unwrap();
+        let files = crate::references::prepare(&root, workspace.path(), &snapshot.reference_images)
+            .unwrap();
+        let mut command = codex_command(Path::new("codex"));
+        attach_references(&mut command, &files);
+        let args: Vec<_> = command
+            .get_args()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            &args[args.len() - 4..],
+            ["--image", "reference-1.png", "--image", "reference-2.png"]
+        );
+        assert!(!args.iter().any(|s| s.contains("%PATH%")));
+        let description = apply_snapshot("使用参考图 1 的人物与参考图 2 的风格", &snapshot);
+        run_generation(
+            &mut fixture_command("success"),
+            workspace.path(),
+            &description,
+            Duration::from_secs(15),
+        )
+        .unwrap();
+        let received = fs::read_to_string(workspace.path().join("received.txt")).unwrap();
+        assert!(received.contains("参考图 1 / reference 1: 人物 & %PATH%.png — ./reference-1.png"));
+        assert!(received.contains("参考图 2 / reference 2: 风格.png — ./reference-2.png"));
+        assert!(received.contains("actual files as image-generation tool reference inputs"));
+    }
+
     const PNG: &[u8] = include_bytes!("../icons/icon.png");
 
     fn fixture_command(case: &str) -> Command {
@@ -563,6 +628,7 @@ mod tests {
             style: Some("FA-002".into()),
             layout: Some("SC-021".into()),
             color: Some("C-10".into()),
+            ..Default::default()
         };
         let description = apply_selections(validate_prompt(&prompt).unwrap(), &selections).unwrap();
         run_generation(
@@ -691,5 +757,35 @@ mod tests {
             .unwrap()
             .ends_with(prompt));
         assert!(!workspace.path().join("injected.txt").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_shim_receives_all_reference_arguments_and_files() {
+        let workspace = tempfile::Builder::new()
+            .prefix("reference test ")
+            .tempdir()
+            .unwrap();
+        let shim = workspace.path().join("codex.cmd");
+        fs::write(&shim, format!("@echo off\r\necho %* > args.txt\r\nif not exist reference-1.png exit /b 8\r\nif not exist reference-2.png exit /b 9\r\n\"{}\" --exact generation::tests::fake_codex --ignored --nocapture\r\nexit /b %errorlevel%\r\n", env::current_exe().unwrap().display())).unwrap();
+        let mut command = codex_command(&shim);
+        let files = vec!["reference-1.png".into(), "reference-2.png".into()];
+        for file in &files {
+            fs::write(workspace.path().join(file), PNG).unwrap();
+        }
+        attach_references(&mut command, &files);
+        command.env("HANDRAW_TEST_CASE", "success");
+        run_generation(
+            &mut command,
+            workspace.path(),
+            "人物 & echo bad > bad.txt",
+            Duration::from_secs(15),
+        )
+        .unwrap();
+        let args = fs::read_to_string(workspace.path().join("args.txt")).unwrap();
+        assert!(args
+            .trim()
+            .ends_with("--image reference-1.png --image reference-2.png"));
+        assert!(!workspace.path().join("bad.txt").exists());
     }
 }

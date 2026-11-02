@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 #[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Selections {
+    pub reference_images: Vec<String>,
     pub style: Option<String>,
     pub layout: Option<String>,
     pub color: Option<String>,
@@ -25,6 +26,8 @@ pub struct CatalogOption {
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Snapshot {
+    #[serde(default)]
+    pub reference_images: Vec<crate::references::Reference>,
     pub style: Option<CatalogOption>,
     pub layout: Option<CatalogOption>,
     pub color: Option<CatalogOption>,
@@ -44,6 +47,7 @@ pub fn snapshot(selections: &Selections, previous: Option<&Snapshot>) -> Result<
             .transpose()
     };
     let mut result = Snapshot {
+        reference_images: Vec::new(),
         style: resolve(
             &selections.style,
             &catalog.style,
@@ -99,6 +103,12 @@ pub fn apply_selections(prompt: &str, selections: &Selections) -> Result<String,
 
 pub fn apply_snapshot(prompt: &str, snapshot: &Snapshot) -> String {
     let mut constraints = Vec::new();
+    if !snapshot.reference_images.is_empty() {
+        constraints.push(format!(
+            "User-selected reference images (attached in this order):\n{}\nUse these actual files as image-generation tool reference inputs. Follow the user's description for whether to reference the person, style, or other features; do not assume every reference controls every feature.",
+            snapshot.reference_images.iter().enumerate().map(|(i, r)| format!("参考图 {} / reference {}: {} — ./reference-{}.png", i + 1, i + 1, r.name, i + 1)).collect::<Vec<_>>().join("\n")
+        ));
+    }
     for (label, option) in [
         ("手绘风格 / style", &snapshot.style),
         ("排版图型 / layout", &snapshot.layout),
@@ -212,6 +222,7 @@ mod tests {
                 style: (mask & 1 != 0).then(|| "FA-001".into()),
                 layout: (mask & 2 != 0).then(|| "SC-001".into()),
                 color: (mask & 4 != 0).then(|| "C-01".into()),
+                ..Default::default()
             };
             let result = apply_selections("彩色小猫", &selections).unwrap();
             assert!(result.starts_with("彩色小猫"));

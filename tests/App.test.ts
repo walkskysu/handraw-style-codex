@@ -8,11 +8,13 @@ import { acceptSnapshot } from '../src/services/creation'
 import { generationOptions, optionCategories } from '../src/services/generationOptions'
 import GalleryView from '../src/components/GalleryView.vue'
 import type { Artwork } from '../src/services/gallery'
+import { referenceImages, referenceError, referenceLoading } from '../src/services/referenceImages'
 vi.mock('@tauri-apps/api/core', { spy: true })
 const events = vi.hoisted(() => ({ change: undefined as undefined | ((event: { payload: Notice }) => void) }))
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (name: string, fn: typeof events.change) => { if (name === 'creation-changed') events.change = fn; return () => {} }) }))
 enableAutoUnmount(afterEach)
 beforeEach(() => {
+  referenceImages.value = []; referenceError.value = ''; referenceLoading.value = false
   localStorage.clear(); vi.spyOn(core, 'isTauri').mockReturnValue(true)
   Object.defineProperties(HTMLDialogElement.prototype, {
     showModal: { configurable: true, value: function (this: HTMLDialogElement) { this.open = true } },
@@ -30,13 +32,15 @@ function backend() {
   let waitForSave: Promise<void> | undefined
   let waitForSnapshot: Promise<void> | undefined
   const ipc = vi.fn(async (cmd: string, args: any) => {
+    if (cmd === 'reference_list') return [{ id: 'person', name: '人物.png', thumbnail: image }, { id: 'style', name: '风格.webp', thumbnail: image }]
     if (cmd === 'job_list') return structuredClone(data)
     if (cmd === 'draft_update') {
       await waitForSave
       if (failSave) throw new Error('磁盘已满，草稿保存失败')
       const input = args.input, old = data.drafts.find(d => d.id === input.id)
-      const changed = old && (old.prompt !== input.prompt || old.mode !== input.mode || old.requested_count !== input.requested_count)
-      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot: visual, requested_count: input.requested_count, input_revision: old ? old.input_revision + (changed ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: '2026-10-31T12:00:00Z' }
+      const snapshot = { ...visual, reference_images: (input.selections.reference_images ?? []).map((id: string) => ({ id, name: id === 'person' ? '人物.png' : '风格.webp' })) }
+      const changed = old && (old.prompt !== input.prompt || old.mode !== input.mode || old.requested_count !== input.requested_count || JSON.stringify(old.snapshot.reference_images) !== JSON.stringify(snapshot.reference_images))
+      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot, requested_count: input.requested_count, input_revision: old ? old.input_revision + (changed ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: '2026-10-31T12:00:00Z' }
       data.drafts = [d, ...data.drafts.filter(x => x.id !== d.id)]; return structuredClone(d)
     }
     if (cmd === 'plan_create') {
@@ -77,6 +81,33 @@ function backend() {
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it('saves multiple references, freezes them during generation and restores them on restart', async () => {
+    const b = backend(); const w = await open()
+    await w.get('#reference-tab').trigger('click'); await flushPromises()
+    await w.get('[data-reference="style"]').trigger('click')
+    await w.get('[data-reference="person"]').trigger('click')
+    const selected = w.get('.creation-panel [data-selection="reference"]')
+    expect(selected.text()).toContain('参考图 1 · 风格.webp')
+    expect(selected.text()).toContain('参考图 2 · 人物.png')
+    await w.get('#style-tab').trigger('click')
+    await selected.get('.selection-link').trigger('click'); await flushPromises()
+    expect(w.get('#reference-tab').attributes('aria-selected')).toBe('true')
+    await w.get('#prompt').setValue('参考图 1 的风格绘制参考图 2 中的人物')
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    const saved = b.ipc.mock.calls.find(([cmd]) => cmd === 'draft_update')![1].input
+    expect(saved.selections.reference_images).toEqual(['style', 'person'])
+    expect(w.get('[data-reference="person"]').attributes('disabled')).toBeDefined()
+    expect(selected.get('[aria-label="移除参考图 1"]').attributes('disabled')).toBeDefined()
+    const j = b.data.jobs[0]!; j.status = 'completed'
+    w.unmount()
+    const restored = await open()
+    expect(restored.get('.creation-panel [data-selection="reference"]').text()).toContain('参考图 2 · 人物.png')
+    await restored.get('.creation-panel [aria-label="移除参考图 1"]').trigger('click')
+    expect(restored.get('.creation-panel [data-selection="reference"]').text()).toContain('参考图 1 · 人物.png')
+    await restored.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.data.jobs[0]!.input!.snapshot.reference_images?.map(r => r.id)).toEqual(['person'])
+    expect(j.input!.snapshot.reference_images?.map(r => r.id)).toEqual(['style', 'person'])
+  })
   it('shows thumbnails and names for each preference, replaces them and clears only the chosen category', async () => {
     backend(); const w = await open()
     for (const { key } of optionCategories) {
@@ -163,7 +194,7 @@ describe('persistent two-mode workspace', () => {
     expect(restored.get<HTMLDialogElement>('#preview-dialog').element.open).toBe(false)
     await new Promise(resolve => setTimeout(resolve, 400)); await flushPromises()
     expect(b.ipc.mock.calls.map(([cmd]) => cmd)).not.toContain('draft_update')
-    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about'].includes(cmd))).toBe(true)
+    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about', 'reference_list'].includes(cmd))).toBe(true)
     expect(b.data.jobs).toHaveLength(1)
     // A normal refresh must not select the historical execution again.
     await b.changed(j)
@@ -171,7 +202,7 @@ describe('persistent two-mode workspace', () => {
     const prompt = edit ? '窗边的小狗' : '窗边的小猫'
     if (edit) await restored.get('#prompt').setValue(prompt)
     await restored.get('.creation-panel form').trigger('submit'); await flushPromises()
-    expect(b.ipc).toHaveBeenCalledWith('draft_update', { input: expect.objectContaining({ id: undefined, prompt, reuse_job_id: j.id, selections: { style: j.input!.snapshot.style!.id, layout: j.input!.snapshot.layout!.id, color: j.input!.snapshot.color!.id } }) })
+    expect(b.ipc).toHaveBeenCalledWith('draft_update', { input: expect.objectContaining({ id: undefined, prompt, reuse_job_id: j.id, selections: { style: j.input!.snapshot.style!.id, layout: j.input!.snapshot.layout!.id, color: j.input!.snapshot.color!.id, reference_images: [] } }) })
     expect(b.data.jobs).toHaveLength(2)
     expect(b.data.jobs[0]!.draft_id).not.toBe(j.draft_id)
     expect(b.data.drafts.find(d => d.id === originalDraft.id)).toEqual(originalDraft)
@@ -194,7 +225,7 @@ describe('persistent two-mode workspace', () => {
     expect(restored.get('.generation-action button[type="submit"]').text()).toBe('生成计划')
     expect(restored.find('.plan-panel').exists()).toBe(false)
     expect(restored.find('.job-preview').exists()).toBe(false)
-    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about'].includes(cmd))).toBe(true)
+    expect(b.ipc.mock.calls.every(([cmd]) => ['job_list', 'job_get', 'update_about', 'reference_list'].includes(cmd))).toBe(true)
     await restored.get('.creation-panel form').trigger('submit'); await flushPromises()
     expect(b.data.drafts).toHaveLength(2)
     expect(b.data.plans).toHaveLength(2)

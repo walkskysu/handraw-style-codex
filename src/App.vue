@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { isDesktop, MAX_PROMPT_LENGTH } from './services/imageGeneration'
 import OptionPicker from './components/OptionPicker.vue'
 import GalleryView from './components/GalleryView.vue'
 import AboutSettings from './components/AboutSettings.vue'
 import CreationFlow from './components/CreationFlow.vue'
+import ReferencePicker from './components/ReferencePicker.vue'
+import ReferenceSelection from './components/ReferenceSelection.vue'
+import { loadReferences } from './services/referenceImages'
 import type { Artwork } from './services/gallery'
 import { generationOptions, optionCategories, type GenerationSelections, type OptionCategory } from './services/generationOptions'
 const desktop = isDesktop()
@@ -26,8 +29,11 @@ const baseline = ref(JSON.stringify({ prompt: '', selections: {} }))
 const draft = () => JSON.stringify({ prompt: prompt.value, selections: selections.value })
 const reuseDialog = ref<HTMLDialogElement | null>(null)
 const promptInput = ref<HTMLTextAreaElement | null>(null)
-const activeCategory = ref<OptionCategory>('style')
-const categoryLabels = { style: '风格', layout: '排版', color: '配色' }
+type CatalogCategory = OptionCategory | 'reference'
+const catalogCategories: { key: CatalogCategory }[] = [...optionCategories, { key: 'reference' }]
+const activeCategory = ref<CatalogCategory>('style')
+onMounted(loadReferences)
+const categoryLabels = { style: '风格', layout: '排版', color: '配色', reference: '参考图像' }
 const categoryIcons = { style: '✳', layout: '▤', color: '◐' }
 const picker = ref<InstanceType<typeof OptionPicker> | null>(null)
 const previewDialog = ref<HTMLDialogElement | null>(null)
@@ -42,8 +48,8 @@ const selectionRows = computed(() => optionCategories.map(({ key }) => {
     : option }
 }))
 function markPreviewFailed(image?: string) { if (image) failedPreviews.value.add(image) }
-async function openCatalog(category: OptionCategory) {
-  activeCategory.value = category; await nextTick(); await picker.value?.reveal(selections.value[category])
+async function openCatalog(category: CatalogCategory) {
+  activeCategory.value = category; await nextTick(); if (category !== 'reference') await picker.value?.reveal(selections.value[category])
   document.getElementById(category + '-tab')?.focus()
 }
 function closePreview() {
@@ -51,7 +57,7 @@ function closePreview() {
   else previewTrigger?.focus()
 }
 function moveTab(event: KeyboardEvent) {
-  const keys = optionCategories.map(({ key }) => key), index = keys.indexOf(activeCategory.value)
+  const keys = catalogCategories.map(({ key }) => key), index = keys.indexOf(activeCategory.value)
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? keys.length - 1 : event.key === 'ArrowRight' ? (index + 1) % keys.length : event.key === 'ArrowLeft' ? (index + keys.length - 1) % keys.length : -1
   if (next < 0) return
   event.preventDefault(); activeCategory.value = keys[next]!
@@ -75,7 +81,7 @@ async function applyReuse() {
   if (!replacement.value) return
   await flow.value?.newTask()
   reused.value = replacement.value
-  restore(reused.value.prompt, Object.fromEntries(optionCategories.flatMap(({ key }) => { const option = reused.value!.snapshot[key]; return option ? [[key, option.id]] : [] })))
+  restore(reused.value.prompt, { ...Object.fromEntries(optionCategories.flatMap(({ key }) => { const option = reused.value!.snapshot[key]; return option ? [[key, option.id]] : [] })), reference_images: reused.value.snapshot.reference_images?.map(r => r.id) ?? [] })
   view.value = 'workspace'; reuseDialog.value?.close(); nextTick(() => promptInput.value?.focus())
 }
 function changeView(next: 'workspace' | 'gallery', groupId?: string) { galleryGroup.value = groupId; previewDialog.value?.close(); view.value = next; if (next === 'workspace' && desktop) void flow.value?.refresh() }
@@ -142,6 +148,7 @@ function showGallery(groupId: string) { changeView('gallery', groupId) }
                 @click="clearSelection(category.key)">×</button>
             </div>
           </div>
+          <ReferenceSelection v-model="selections.reference_images" :disabled="pending || frozen || updateLocked" @open="openCatalog('reference')" />
           <div id="creation-actions" ref="actions" class="generation-action"></div>
         </form>
         <p v-if="!desktop" class="preview-hint">当前为浏览器预览。请启动桌面应用，并安装、登录本地 Codex 后生成图片。</p>
@@ -153,14 +160,15 @@ function showGallery(groupId: string) { changeView('gallery', groupId) }
           <span class="catalog-hint">点击卡片应用到画面偏好</span>
         </div>
         <div class="catalog-tabs" role="tablist" aria-label="图鉴类别" @keydown="moveTab">
-          <button v-for="category in optionCategories" :id="`${category.key}-tab`" :key="category.key"
+          <button v-for="category in catalogCategories" :id="`${category.key}-tab`" :key="category.key"
             type="button" role="tab" :aria-selected="activeCategory === category.key"
             :aria-controls="activeCategory === category.key ? `${category.key}-panel` : undefined"
             :tabindex="activeCategory === category.key ? 0 : -1" @click="activeCategory = category.key">
             {{ categoryLabels[category.key] }}
           </button>
         </div>
-        <OptionPicker ref="picker" v-model="selections[activeCategory]" :category="activeCategory"
+        <ReferencePicker v-if="activeCategory === 'reference'" v-model="selections.reference_images" :disabled="pending || frozen || updateLocked" />
+        <OptionPicker v-else ref="picker" v-model="selections[activeCategory]" :category="activeCategory"
           :label="categoryLabels[activeCategory]" :options="generationOptions[activeCategory]" :disabled="pending || frozen" />
       </section>
 

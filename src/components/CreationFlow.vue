@@ -7,6 +7,8 @@ import { isDesktop } from '../services/imageGeneration'
 import { discardPending, openBackups, message, type Artwork } from '../services/gallery'
 import { generationOptions, optionCategories, type GenerationSelections, type OptionCategory } from '../services/generationOptions'
 import OptionPicker from './OptionPicker.vue'
+import ReferencePicker from './ReferencePicker.vue'
+import ReferenceSelection from './ReferenceSelection.vue'
 import PlanPanel from './PlanPanel.vue'
 import JobPreview from './JobPreview.vue'
 const props = defineProps<{ prompt: string; selections: GenerationSelections; reuseId?: string; locked: boolean; controls: HTMLElement | null; modeControl: HTMLElement | null }>()
@@ -28,6 +30,7 @@ const search = ref('')
 const filter = ref<TaskFilter>('all')
 const filters: [TaskFilter, string][] = [['all', '全部'], ['draft', '草稿'], ['active', '进行中'], ['attention', '待处理'], ['completed', '已完成']]
 const category = ref<OptionCategory | null>(null)
+const showReferences = ref(false)
 const detail = ref<HTMLElement | null>(null)
 const categoryLabels = { style: '风格', layout: '排版', color: '配色' }
 const copiedJob = ref<string>()
@@ -133,11 +136,11 @@ async function flushEditor() {
   await saveChain
 }
 function selectionsOf(d: api.Draft): GenerationSelections {
-  return Object.fromEntries(optionCategories.flatMap(({ key }) => d.snapshot[key] ? [[key, d.snapshot[key]!.id]] : []))
+  return { ...Object.fromEntries(optionCategories.flatMap(({ key }) => d.snapshot[key] ? [[key, d.snapshot[key]!.id]] : [])), reference_images: d.snapshot.reference_images?.map(r => r.id) ?? [] }
 }
 async function loadDraft(d?: api.Draft) {
   clearTimeout(autosave); selectionSequence++; restoring = true
-  job.value = null; current.value = d; category.value = null; copiedJob.value = undefined
+  job.value = null; current.value = d; category.value = null; showReferences.value = false; copiedJob.value = undefined
   emit('resetSource')
   mode.value = d?.mode ?? mode.value; count.value = d?.requested_count ?? null; feedback.value = d?.feedback_draft ?? ''
   emit('restore', d?.prompt ?? '', d ? selectionsOf(d) : {})
@@ -216,6 +219,7 @@ function chooseVersion(id: string) {
 }
 function editPrompt(event: Event) { emit('restore', (event.target as HTMLTextAreaElement).value, props.selections) }
 function editSelection(key: OptionCategory, value?: string) { emit('restore', props.prompt, { ...props.selections, [key]: value }) }
+function editReferences(value: string[]) { emit('restore', props.prompt, { ...props.selections, reference_images: value }) }
 function photoSaved(_a: Artwork) { void refresh() }
 function stopJob() { return act(() => api.stop(job.value!.id)) }
 function resumeJob(item?: api.Item) { return act(() => api.resume(job.value!, item)) }
@@ -290,6 +294,8 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
         <div v-for="option in optionCategories" :key="option.key" class="task-preference"><button type="button" :disabled="busy || locked" @click="category = category === option.key ? null : option.key">{{ categoryLabels[option.key] }} <span>{{ generationOptions[option.key].find(o => o.id === selections[option.key])?.name ?? selections[option.key] ?? '自动' }}</span> ›</button><button v-if="selections[option.key]" type="button" :aria-label="'清除任务' + categoryLabels[option.key]" :disabled="busy || locked" @click="editSelection(option.key)">×</button></div>
         <section v-if="category" class="catalog-panel task-catalog"><h4>{{ categoryLabels[category] }}图鉴</h4><OptionPicker id-prefix="task-" :category="category" :label="categoryLabels[category]" :options="generationOptions[category]" :model-value="selections[category]" :disabled="busy || locked" @update:model-value="editSelection(category!, $event)" /></section>
         <label>生成数量 <select v-if="mode === 'planned'" v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select><span v-else>1 张</span></label>
+        <ReferenceSelection :model-value="selections.reference_images" :disabled="busy || locked" @open="showReferences = !showReferences" @update:model-value="editReferences" />
+        <ReferencePicker v-if="showReferences" class="task-references" embedded :model-value="selections.reference_images" :disabled="busy || locked" @update:model-value="editReferences" />
         <button class="primary" type="submit" :disabled="busy || locked || !prompt.trim() || !isDesktop()">{{ mode === 'quick' ? '生成图片' : '生成计划' }}</button>
       </form>
       <template v-if="plan">
@@ -299,6 +305,8 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
           <div class="task-modes"><button type="button" :disabled="busy" @click="switchMode('quick')">快速生成</button><button type="button" :disabled="busy" @click="switchMode('planned')">规划生成</button></div>
           <label v-for="option in optionCategories" :key="option.key">{{ categoryLabels[option.key] }}<select :value="selections[option.key] ?? ''" :disabled="busy || locked" @change="editSelection(option.key, ($event.target as HTMLSelectElement).value || undefined)"><option value="">自动</option><option v-for="o in generationOptions[option.key]" :key="o.id" :value="o.id">{{ o.id }} · {{ o.name }}</option></select></label>
           <label v-if="mode === 'planned'">生成数量<select v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select></label>
+          <ReferenceSelection :model-value="selections.reference_images" :disabled="busy || locked" @open="showReferences = !showReferences" @update:model-value="editReferences" />
+          <ReferencePicker v-if="showReferences" class="task-references" embedded :model-value="selections.reference_images" :disabled="busy || locked" @update:model-value="editReferences" />
         </details>
         <PlanPanel v-if="mode === 'planned'" :plan="plan" :versions="versions" v-model:feedback="feedback" :disabled="busy || locked" :stale="stale" @confirm="confirm" @revise="revise" @select="chooseVersion" />
         <button type="button" :disabled="busy || locked || !prompt.trim()" @click="submit">{{ mode === 'planned' ? '重新生成计划' : '生成图片' }}</button>
@@ -314,6 +322,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
 </template>
 <style scoped>
 .task-library, .task-detail, .task-editor { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.task-references { height: 440px; flex: none; }
 .task-library input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
 .task-filters, .task-modes { display: flex; gap: 4px; background: #f3f4f0; padding: 4px; border-radius: 9px; }
 .task-filters button, .task-modes button { flex: 1; padding: 8px 4px; border: 0; font-size: 13px; background: transparent; }
