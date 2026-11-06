@@ -28,11 +28,11 @@ for (const viewport of [
       await page.locator(`#${category}-tab`).click()
       const panel = page.getByRole('tabpanel')
       await expect(panel).toHaveAttribute('tabindex', '0')
-      await expect(panel.locator('.option-card')).toHaveCount(Math.min(40, catalog[category].length))
+      await expect(panel.locator('.option-card')).toHaveCount(catalog[category].length)
+      await expect(page.locator('.picker-footer button')).toHaveCount(0)
+      await expect(page.locator('.picker-footer [role="status"]')).toHaveText(`共 ${catalog[category].length} 项`)
       await expect(panel.locator('nav')).toHaveCount(0)
       await expect.poll(() => panel.evaluate((el) => el.scrollTop)).toBe(0)
-      while (await page.locator('.load-more').isEnabled()) await page.locator('.load-more').click()
-      await expect(panel.locator('.option-card')).toHaveCount(catalog[category].length)
       const scrollRange = await panel.evaluate((el) => el.scrollHeight - el.clientHeight)
       expect(scrollRange).toBeGreaterThan(0)
       // Keyboard scrolling must work without moving the application shell.
@@ -53,7 +53,7 @@ for (const viewport of [
       await expect(panel.locator('.input-hint')).toBeVisible()
       await expect.poll(() => panel.evaluate((el) => el.scrollTop)).toBe(0)
       await page.locator('#catalog-search').fill('')
-      await expect(panel.locator('.option-card')).toHaveCount(Math.min(40, catalog[category].length))
+      await expect(panel.locator('.option-card')).toHaveCount(catalog[category].length)
       await page.locator(`[data-selection="${category}"] .selection-link`).click()
       await expect(panel.locator('.option-card').last()).toHaveAttribute('aria-pressed', 'true')
     }

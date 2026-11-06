@@ -7,24 +7,30 @@ enableAutoUnmount(afterEach)
 afterEach(() => { Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView') })
 
 describe('scrollable image options', () => {
-  it('resets batch size for searches and categories without dropping a later selection', async () => {
+  it('shows all search matches and category options without dropping a later selection', async () => {
     const options = generationOptions.style
     const wrapper = mount(OptionPicker, { props: { category: 'style', label: '风格', options, modelValue: options[70]!.id } })
-    expect(wrapper.findAll('.option-card')).toHaveLength(40)
-    await wrapper.get('.load-more').trigger('click')
-    expect(wrapper.findAll('.option-card')).toHaveLength(80)
+    expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
     expect(wrapper.get(`[data-option="${options[70]!.id}"]`).attributes('aria-pressed')).toBe('true')
+    await wrapper.get('input').setValue('0')
+    const matches = options.filter(option => `${option.id} ${option.name} ${option.group}`.includes('0'))
+    expect(matches.length).toBeGreaterThan(40)
+    expect(wrapper.findAll('.option-card').map(card => card.attributes('data-option'))).toEqual(matches.map(option => option.id))
+    expect(wrapper.get('[role="status"]').text()).toBe(`共 ${matches.length} 项`)
     await wrapper.get('input').setValue(options.at(-1)!.id)
     expect(wrapper.findAll('.option-card')).toHaveLength(1)
-    expect(wrapper.get('.load-more').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[role="status"]').text()).toBe('共 1 项')
     await wrapper.get('input').setValue('')
-    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
     await wrapper.vm.reveal(options[70]!.id)
-    expect(wrapper.findAll('.option-card')).toHaveLength(80)
+    expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
     expect(wrapper.get(`[data-option="${options[70]!.id}"]`).attributes('aria-pressed')).toBe('true')
     await wrapper.setProps({ category: 'layout', options: generationOptions.layout })
-    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    expect(wrapper.findAll('.option-card')).toHaveLength(generationOptions.layout.length)
     expect(wrapper.props('modelValue')).toBe(options[70]!.id)
+    await wrapper.setProps({ category: 'style', options })
+    expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
+    expect(wrapper.get(`[data-option="${options[70]!.id}"]`).attributes('aria-pressed')).toBe('true')
   })
   it('returns scrolling to the start after searching, switching categories and revealing without a selection', async () => {
     const wrapper = mount(OptionPicker, { props: {
@@ -44,11 +50,12 @@ describe('scrollable image options', () => {
     expect(area.scrollTop).toBe(0)
   })
 
-  it.each(optionCategories)('loads $label images in batches and reveals the last selection', async ({ key, label }) => {
+  it.each(optionCategories)('shows every $label option immediately and reveals the last selection', async ({ key, label }) => {
     const options = generationOptions[key]
     const wrapper = mount(OptionPicker, { props: { category: key, label, options } })
-    expect(wrapper.findAll('.option-card')).toHaveLength(Math.min(40, options.length))
-    while (!wrapper.get<HTMLButtonElement>('.load-more').element.disabled) await wrapper.get('.load-more').trigger('click')
+    expect(wrapper.findAll('.option-card')).toHaveLength(options.length)
+    expect(wrapper.find('.picker-footer button').exists()).toBe(false)
+    expect(wrapper.get('[role="status"]').text()).toBe(`共 ${options.length} 项`)
     const cards = wrapper.findAll('.option-card')
     expect(cards.map((card) => card.attributes('data-option'))).toEqual(options.map(({ id }) => id))
     expect(wrapper.find('nav').exists()).toBe(false)
@@ -62,7 +69,7 @@ describe('scrollable image options', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([last.id])
     await wrapper.setProps({ modelValue: last.id })
     expect(wrapper.get(`[data-option="${last.id}"]`).attributes('aria-pressed')).toBe('true')
-    // Revealing a later batch can remount the selected card after clearing the filter.
+    // Revealing the selection restores the full list after clearing the filter.
     await wrapper.get('input').setValue(last.id)
     expect(wrapper.props('modelValue')).toBe(last.id)
     const scrollIntoView = vi.fn()
@@ -86,8 +93,9 @@ describe('scrollable image options', () => {
     await wrapper.get('input').setValue('不存在的关键词')
     expect(wrapper.findAll('.option-card')).toHaveLength(0)
     expect(wrapper.text()).toContain('没有匹配')
+    expect(wrapper.get('[role="status"]').text()).toBe('共 0 项')
     await wrapper.get('input').setValue('')
-    expect(wrapper.findAll('.option-card')).toHaveLength(40)
+    expect(wrapper.findAll('.option-card')).toHaveLength(generationOptions.style.length)
     expect(wrapper.get('[data-option="FA-001"]').attributes('aria-pressed')).toBe('true')
   })
 
