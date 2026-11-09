@@ -117,16 +117,24 @@ for (const width of [1440, 1100]) {
   })
 }
 
-for (const width of [1920, 1659, 1440, 1399, 1200, 1100]) {
-  test(`catalog occupies the right side of a two-column workspace at ${width}px`, async ({ page }, testInfo) => {
+for (const width of [2874, 1920, 1659, 1440, 1399, 1200, 1199, 1100, 900, 640]) {
+  test(`two-column workspace fills the area below navigation at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 920 })
     await page.goto('/')
     await expect(page.locator('main > section')).toHaveCount(2)
     await expect(page.locator('.preview-panel')).not.toBeVisible()
     const catalog = (await page.locator('main .catalog-panel').boundingBox())!
     const creation = (await page.locator('.creation-panel').boundingBox())!
+    const header = (await page.locator('.app-header').boundingBox())!
+    expect(header.x).toBe(0)
+    expect(header.width).toBe(width)
+    expect(creation.x).toBe(0)
+    expect(creation.y).toBe(header.y + header.height)
+    expect(creation.y + creation.height).toBe(920)
+    expect(catalog.x + catalog.width).toBe(width)
+    expect(catalog.y + catalog.height).toBe(920)
     expect(catalog.width).toBeGreaterThan(creation.width)
-    expect(catalog.x).toBeGreaterThan(creation.x + creation.width)
+    expect(catalog.x).toBe(creation.x + creation.width)
     expect(catalog.y).toBe(creation.y)
     const tabs = (await page.locator('.catalog-tabs').boundingBox())!
     const search = (await page.locator('#catalog-search').boundingBox())!
