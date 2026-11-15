@@ -24,6 +24,8 @@ pub struct Draft {
     pub prompt: String,
     pub snapshot: Snapshot,
     pub requested_count: Option<usize>,
+    #[serde(default)]
+    pub include_cover: bool,
     pub input_revision: u64,
     pub current_plan_id: Option<String>,
     pub feedback_draft: String,
@@ -35,12 +37,21 @@ pub struct Draft {
 }
 impl Draft {
     pub fn input_hash(&self) -> Result<String> {
-        Ok(hash(&json(&(
+        let input = json(&(
             &self.prompt,
             &self.snapshot,
             self.requested_count,
             self.input_revision,
-        ))?))
+        ))?;
+        // Keep existing plans valid for drafts saved before the cover option existed.
+        Ok(hash(&if self.include_cover {
+            json(&(input, true))?
+        } else {
+            input
+        }))
+    }
+    pub fn cover_count(&self) -> usize {
+        usize::from(self.mode == "planned" && self.include_cover)
     }
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -160,13 +171,15 @@ pub fn count(d: &Draft) -> Result<Option<usize>> {
     if n.is_some_and(|n| !(1..=12).contains(&n)) {
         return Err("规划数量需为 1–12 张，请修改数量。".into());
     }
-    Ok(n)
+    Ok(n.map(|n| n + d.cover_count()))
 }
 pub fn validate(c: &Content, d: &Draft) -> Result<()> {
     if json(c)?.len() > 128 * 1024 {
         return Err("计划超过 128 KB".into());
     }
-    if !(1..=12).contains(&c.items.len()) || count(d)?.is_some_and(|n| n != c.items.len()) {
+    if !(1 + d.cover_count()..=12 + d.cover_count()).contains(&c.items.len())
+        || count(d)?.is_some_and(|n| n != c.items.len())
+    {
         return Err("计划张数不符合要求".into());
     }
     if !["series", "variants"].contains(&c.kind.as_str()) {
@@ -260,6 +273,7 @@ impl Store {
         prompt: String,
         snapshot: Snapshot,
         requested_count: Option<usize>,
+        include_cover: bool,
         feedback: String,
         revision: Option<u64>,
     ) -> Result<Draft> {
@@ -269,6 +283,7 @@ impl Store {
         {
             return Err("无效草稿".into());
         }
+        let include_cover = mode == "planned" && include_cover;
         let mut d = if let Some(id) = old {
             self.assert_draft_editable(&id)?;
             self.draft(&id)?
@@ -282,6 +297,7 @@ impl Store {
                 prompt: String::new(),
                 snapshot: Snapshot::default(),
                 requested_count: None,
+                include_cover: false,
                 input_revision: 0,
                 current_plan_id: None,
                 feedback_draft: String::new(),
@@ -297,6 +313,7 @@ impl Store {
             || d.prompt != prompt
             || json(&d.snapshot)? != json(&snapshot)?
             || d.requested_count != requested_count
+            || d.include_cover != include_cover
         {
             d.input_revision += 1;
         }
@@ -304,6 +321,7 @@ impl Store {
         d.prompt = prompt;
         d.snapshot = snapshot;
         d.requested_count = requested_count;
+        d.include_cover = include_cover;
         d.feedback_draft = feedback;
         d.updated_at = now();
         self.put_draft(&d)?;
@@ -377,5 +395,10 @@ impl Store {
 }
 
 pub fn instructions(d: &Draft, base: Option<&Plan>) -> Result<String> {
-    Ok(format!("You are a text-only image planner. Never generate images or call tools. Return only the JSON matching the provided schema. Plan 1–12 independent images. Quantity constraint: {:?}; this overrides numbers in the description. Distinguish series from variations. Preserve stable item IDs when revising. All positions start at 0. Include exact image copy, concrete visual directions, requirements, common visual rules and dimensions. Respect the complete selected snapshot. Decide unspecified visual rules now. Record sources or explicitly state unverified in verification; structural validation is not fact checking. Use Chinese for user-facing text. No empty required strings; use 无 where appropriate.\nDraft: {}\nBase complete plan: {}",count(d)?,json(d)?,json(&base)?))
+    let cover = if d.cover_count() == 1 {
+        "Plan 1–12 content images plus exactly one additional cover image (2–13 total). The selected requested_count or count in the description specifies content images only. Put the cover first (position 0), identify it as 封面 in its title and design it to introduce the entire series. The cover must not replace any content image."
+    } else {
+        "Plan 1–12 independent images. Do not add an extra cover image."
+    };
+    Ok(format!("You are a text-only image planner. Never generate images or call tools. Return only the JSON matching the provided schema. {cover} Total image quantity constraint: {:?}; this overrides numbers in the description. Distinguish series from variations. Preserve stable item IDs when revising. All positions start at 0. Include exact image copy, concrete visual directions, requirements, common visual rules and dimensions. Respect the complete selected snapshot. Decide unspecified visual rules now. Record sources or explicitly state unverified in verification; structural validation is not fact checking. Use Chinese for user-facing text. No empty required strings; use 无 where appropriate.\nDraft: {}\nBase complete plan: {}",count(d)?,json(d)?,json(&base)?))
 }

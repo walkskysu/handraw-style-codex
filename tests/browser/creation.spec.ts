@@ -3,6 +3,31 @@ import { readFileSync } from 'node:fs'
 
 const image = `data:image/png;base64,${readFileSync('src-tauri/icons/icon.png').toString('base64')}`
 for (const width of [1440, 360]) {
+  test(`optional cover count is accessible at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    const controls = page.locator('.generation-action')
+    await expect(controls.getByRole('checkbox', { name: '生成封面' })).toHaveCount(0)
+    await page.getByRole('switch', { name: '快速生成' }).click()
+    const cover = controls.getByRole('checkbox', { name: '生成封面' })
+    await expect(cover).not.toBeChecked()
+    await controls.getByRole('combobox').selectOption('4')
+    await cover.check()
+    await expect(controls).toContainText('本次按所选数量 5 张规划（正文 4 张 + 封面 1 张）')
+    await expect(cover).toBeInViewport()
+    expect(await controls.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('planning-cover.png') })
+    await controls.getByRole('combobox').selectOption('12')
+    await expect(controls).toContainText('13 张规划')
+    await cover.focus()
+    await page.keyboard.press('Space')
+    await expect(cover).not.toBeChecked()
+    await expect(controls).toContainText('本次按所选数量 12 张规划')
+    await page.getByRole('switch', { name: '快速生成' }).click()
+    await expect(cover).toHaveCount(0)
+    await expect(controls).toContainText('每次生成 1 张图片')
+  })
+
   test(`plan confirmation and incremental results remain accessible at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
     await page.addInitScript(({ image }) => {

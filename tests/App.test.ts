@@ -39,14 +39,14 @@ function backend() {
       if (failSave) throw new Error('磁盘已满，草稿保存失败')
       const input = args.input, old = data.drafts.find(d => d.id === input.id)
       const snapshot = { ...visual, reference_images: (input.selections.reference_images ?? []).map((id: string) => ({ id, name: id === 'person' ? '人物.png' : '风格.webp' })) }
-      const changed = old && (old.prompt !== input.prompt || old.mode !== input.mode || old.requested_count !== input.requested_count || JSON.stringify(old.snapshot.reference_images) !== JSON.stringify(snapshot.reference_images))
-      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot, requested_count: input.requested_count, input_revision: old ? old.input_revision + (changed ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: '2026-10-31T12:00:00Z' }
+      const changed = old && (old.prompt !== input.prompt || old.mode !== input.mode || old.requested_count !== input.requested_count || old.include_cover !== input.include_cover || JSON.stringify(old.snapshot.reference_images) !== JSON.stringify(snapshot.reference_images))
+      const d: Draft = { id: old?.id ?? `draft-${++serial}`, mode: input.mode, prompt: input.prompt, snapshot, requested_count: input.requested_count, include_cover: input.include_cover, input_revision: old ? old.input_revision + (changed ? 1 : 0) : 1, current_plan_id: old?.current_plan_id ?? null, feedback_draft: input.feedback, updated_at: '2026-10-31T12:00:00Z' }
       data.drafts = [d, ...data.drafts.filter(x => x.id !== d.id)]; return structuredClone(d)
     }
     if (cmd === 'plan_create') {
       const d = data.drafts.find(d => d.id === args.draftId)!, id = `planning-${++serial}`
       if (failPlan) { data.planning_jobs.unshift({ id, draft_id: d.id, status: 'failed', revision: 2, error: '规划失败', output_plan_id: null }); return id }
-      const p: Plan = { id: `plan-${++serial}`, draft_id: d.id, version: data.plans.filter(p => p.draft_id === d.id).length + 1, input_revision: d.input_revision, input_hash: 'input', content_hash: 'digest', snapshot: visual, original_prompt: d.prompt, confirmed_at: null, content: { title: '猫咪计划', goal: '不同姿态', audience: '初学者', kind: 'variants', visual: '水彩', dimensions: '1:1', verification: '未核实', change_summary: d.feedback_draft, items: Array.from({ length: d.requested_count ?? 3 }, (_, position) => ({ id: `entry-${position}`, position, title: `猫 ${position + 1}`, copy: '喵', description: '窗边', requirements: '水彩' })) } }
+      const p: Plan = { id: `plan-${++serial}`, draft_id: d.id, version: data.plans.filter(p => p.draft_id === d.id).length + 1, input_revision: d.input_revision, input_hash: 'input', content_hash: 'digest', snapshot: visual, original_prompt: d.prompt, confirmed_at: null, content: { title: '猫咪计划', goal: '不同姿态', audience: '初学者', kind: 'variants', visual: '水彩', dimensions: '1:1', verification: '未核实', change_summary: d.feedback_draft, items: Array.from({ length: (d.requested_count ?? 3) + Number(d.include_cover ?? false) }, (_, position) => ({ id: `entry-${position}`, position, title: `猫 ${position + 1}`, copy: '喵', description: '窗边', requirements: '水彩' })) } }
       d.current_plan_id = p.id; d.feedback_draft = ''; data.plans.push(p)
       data.planning_jobs.unshift({ id, draft_id: d.id, status: 'completed', revision: 2, error: null, output_plan_id: p.id }); return id
     }
@@ -81,6 +81,59 @@ function backend() {
 }
 async function open() { const w = mount(App, { attachTo: document.body }); await flushPromises(); return w }
 describe('persistent two-mode workspace', () => {
+  it('adds an optional cover to planned quantities and invalidates plans when toggled', async () => {
+    const b = backend(), w = await open()
+    expect(w.find('.generation-action input[type="checkbox"]').exists()).toBe(false)
+    await w.get('#prompt').setValue('猫咪知识卡片')
+    await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    const cover = w.get<HTMLInputElement>('.generation-action input[type="checkbox"]')
+    expect(cover.element.checked).toBe(false)
+    await w.get('.generation-action select').setValue(4)
+    expect(w.get('#generation-hint').text()).toBe('本次按所选数量 4 张规划')
+    await cover.setValue(true)
+    expect(w.get('#generation-hint').text()).toBe('本次按所选数量 5 张规划（正文 4 张 + 封面 1 张）')
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.data.drafts[0]).toMatchObject({ requested_count: 4, include_cover: true })
+    expect(w.text()).toContain('第 1 版 · 共 5 张')
+    await w.get('.task-detail .cover-option input').setValue(false)
+    expect(cover.element.checked).toBe(false)
+    expect(button(w, '确认计划，生成 5 张').attributes('disabled')).toBeDefined()
+    await button(w, '重新生成计划').trigger('click'); await flushPromises()
+    expect(b.data.plans.at(-1)?.content.items).toHaveLength(4)
+    await cover.setValue(true)
+    await w.get('.generation-action select').setValue(12)
+    expect(w.get('#generation-hint').text()).toContain('13 张规划')
+    await w.get('.generation-action select option').setValue(true)
+    expect(w.get('#generation-hint').text()).toContain('共 2–13 张')
+    await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    expect(b.data.drafts[0]).toMatchObject({ mode: 'quick', requested_count: 1, include_cover: false })
+    expect(w.find('.generation-action input[type="checkbox"]').exists()).toBe(false)
+    await w.get('.creation-panel form').trigger('submit'); await flushPromises()
+    expect(b.data.jobs[0]?.expected_count).toBe(1)
+  })
+  it('restores the cover choice in drafts, copied jobs and startup input', async () => {
+    const b = backend(), w = await open()
+    await w.get('#prompt').setValue('四张猫咪卡片')
+    await w.get('[role="switch"]').trigger('click'); await flushPromises()
+    await w.get('.generation-action select').setValue(4)
+    await w.get('.generation-action input[type="checkbox"]').setValue(true)
+    await button(w, '← 全部任务').trigger('click'); await flushPromises()
+    expect(w.get('.task-card').text()).toContain('5 张')
+    await w.get('.task-card').trigger('click'); await flushPromises()
+    expect(w.get<HTMLInputElement>('.task-editor .cover-option input').element.checked).toBe(true)
+    await w.get('.task-editor').trigger('submit'); await flushPromises()
+    await button(w, '确认计划，生成 5 张').trigger('click'); await flushPromises()
+    expect(b.data.jobs[0]?.expected_count).toBe(5)
+    expect(w.find('.generation-action input[type="checkbox"]').exists()).toBe(false)
+    const j = b.data.jobs[0]!; j.status = 'completed'; await b.changed(j)
+    await w.get('.task-detail .task-actions button').trigger('click'); await flushPromises()
+    expect(w.get<HTMLInputElement>('.generation-action input[type="checkbox"]').element.checked).toBe(true)
+    expect(b.data.drafts[0]).toMatchObject({ requested_count: 4, include_cover: true })
+    w.unmount()
+    const restored = await open()
+    expect(restored.get<HTMLInputElement>('.generation-action input[type="checkbox"]').element.checked).toBe(true)
+    expect(restored.get('#generation-hint').text()).toContain('5 张规划')
+  })
   it('saves multiple references, freezes them during generation and restores them on restart', async () => {
     const b = backend(); const w = await open()
     await w.get('#reference-tab').trigger('click'); await flushPromises()

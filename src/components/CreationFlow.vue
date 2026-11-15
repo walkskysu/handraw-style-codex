@@ -15,6 +15,10 @@ const props = defineProps<{ prompt: string; selections: GenerationSelections; re
 const emit = defineEmits<{ busy: [boolean]; frozen: [boolean]; unsaved: [boolean]; revision: [string]; restore: [string, GenerationSelections]; gallery: [string]; resetSource: [] }>()
 const mode = ref<api.Mode>(localStorage.getItem('creation-mode') === 'planned' ? 'planned' : 'quick')
 const count = ref<number | null>(null)
+const includeCover = ref(false)
+const generationHint = computed(() => mode.value === 'quick' ? '每次生成 1 张图片'
+  : count.value !== null ? `本次按所选数量 ${count.value + Number(includeCover.value)} 张规划${includeCover.value ? `（正文 ${count.value} 张 + 封面 1 张）` : ''}`
+  : includeCover.value ? '自动规划正文 1–12 张 + 封面 1 张，共 2–13 张；确认计划后生成' : '自动规划 1–12 张；确认计划后生成')
 const current = ref<api.Draft>()
 const feedback = ref('')
 const all = ref<api.Library>({ drafts: [], plans: [], planning_jobs: [], jobs: [] })
@@ -58,7 +62,7 @@ watch(frozen, value => emit('frozen', value), { immediate: true })
 watch(() => job.value, j => emit('revision', `${j?.id}-${j?.revision}`))
 watch(() => [saveState.value, all.value.jobs, job.value], () => emit('unsaved', saveState.value === 'failed' || saveState.value === 'saving' || all.value.jobs.some(j => j.pending_save_count > 0) || !!job.value?.pending_save_count))
 watch(mode, () => localStorage.setItem('creation-mode', mode.value))
-watch(() => [props.prompt, JSON.stringify(props.selections), props.reuseId, count.value, mode.value], () => {
+watch(() => [props.prompt, JSON.stringify(props.selections), props.reuseId, count.value, includeCover.value, mode.value], () => {
   if (restoring || frozen.value) return
   dirty.value = true; queueSave()
 })
@@ -74,7 +78,7 @@ async function persist() {
   if (frozen.value || !isDesktop()) return current.value
   if (!current.value && !props.prompt.trim()) { saveState.value = 'idle'; return }
   const epoch = selectionSequence
-  const values = { mode: mode.value, prompt: props.prompt, selections: { ...props.selections }, reuse_id: props.reuseId, reuse_job_id: copiedJob.value, requested_count: mode.value === 'quick' ? 1 : count.value, feedback: feedback.value }
+  const values = { mode: mode.value, prompt: props.prompt, selections: { ...props.selections }, reuse_id: props.reuseId, reuse_job_id: copiedJob.value, requested_count: mode.value === 'quick' ? 1 : count.value, include_cover: mode.value === 'planned' && includeCover.value, feedback: feedback.value }
   saveState.value = 'saving'
   const work = saveChain.catch(() => {}).then(async () => {
     if (epoch !== selectionSequence) return
@@ -84,7 +88,7 @@ async function persist() {
       if (epoch !== selectionSequence || disposed) return
       current.value = result
       all.value.drafts = [result, ...all.value.drafts.filter(d => d.id !== result.id)]
-      if (mode.value === values.mode && props.prompt === values.prompt && JSON.stringify(props.selections) === JSON.stringify(values.selections) && (mode.value === 'quick' ? 1 : count.value) === values.requested_count && feedback.value === values.feedback) {
+      if (mode.value === values.mode && props.prompt === values.prompt && JSON.stringify(props.selections) === JSON.stringify(values.selections) && (mode.value === 'quick' ? 1 : count.value) === values.requested_count && (mode.value === 'planned' && includeCover.value) === values.include_cover && feedback.value === values.feedback) {
         dirty.value = false; saveState.value = 'saved'; saveError.value = ''
       }
     } catch (e) {
@@ -143,6 +147,7 @@ async function loadDraft(d?: api.Draft) {
   job.value = null; current.value = d; category.value = null; showReferences.value = false; copiedJob.value = undefined
   emit('resetSource')
   mode.value = d?.mode ?? mode.value; count.value = d?.requested_count ?? null; feedback.value = d?.feedback_draft ?? ''
+  includeCover.value = d?.include_cover ?? false
   emit('restore', d?.prompt ?? '', d ? selectionsOf(d) : {})
   dirty.value = false; saveState.value = d ? 'saved' : 'idle'; saveError.value = ''; error.value = ''; showLibrary.value = false
   await nextTick(); restoring = false
@@ -171,6 +176,7 @@ async function copyInput(source?: api.Draft, sourceJob?: string) {
   if (source) {
     restoring = true
     mode.value = source.mode; count.value = source.requested_count
+    includeCover.value = source.include_cover ?? false
     emit('restore', source.prompt, selectionsOf(source))
     await nextTick(); restoring = false; copiedJob.value = sourceJob
   }
@@ -258,9 +264,12 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
   </Teleport>
   <Teleport v-if="mounted && controls" :to="controls">
     <template v-if="!frozen">
-      <label v-if="mode === 'planned'">生成数量 <select v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select></label>
+      <div v-if="mode === 'planned'" class="planning-options">
+        <label>生成数量 <select v-model="count" :disabled="busy || locked"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select></label>
+        <label class="cover-option"><input v-model="includeCover" type="checkbox" :disabled="busy || locked" />生成封面</label>
+      </div>
       <button type="submit" :disabled="busy || locked || !prompt.trim() || !isDesktop()">{{ busy ? '正在处理…' : mode === 'quick' ? '生成图片 ↗' : '生成计划' }}</button>
-      <p id="generation-hint" class="input-hint">{{ mode === 'quick' ? '每次生成 1 张图片' : count ? `本次按所选数量 ${count} 张规划` : '自动规划 1–12 张；确认计划后生成' }}</p>
+      <p id="generation-hint" class="input-hint" aria-live="polite">{{ generationHint }}</p>
     </template>
     <template v-else><p class="input-hint">本次输入已固定，修改内容请以此新建。</p><button type="button" :disabled="pending || locked" @click="act(() => newTask(true))">以此新建</button></template>
   </Teleport>
@@ -294,6 +303,8 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
         <div v-for="option in optionCategories" :key="option.key" class="task-preference"><button type="button" :disabled="busy || locked" @click="category = category === option.key ? null : option.key">{{ categoryLabels[option.key] }} <span>{{ generationOptions[option.key].find(o => o.id === selections[option.key])?.name ?? selections[option.key] ?? '自动' }}</span> ›</button><button v-if="selections[option.key]" type="button" :aria-label="'清除任务' + categoryLabels[option.key]" :disabled="busy || locked" @click="editSelection(option.key)">×</button></div>
         <section v-if="category" class="catalog-panel task-catalog"><h4>{{ categoryLabels[category] }}图鉴</h4><OptionPicker id-prefix="task-" :category="category" :label="categoryLabels[category]" :options="generationOptions[category]" :model-value="selections[category]" :disabled="busy || locked" @update:model-value="editSelection(category!, $event)" /></section>
         <label>生成数量 <select v-if="mode === 'planned'" v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select><span v-else>1 张</span></label>
+        <label v-if="mode === 'planned'" class="cover-option"><input v-model="includeCover" type="checkbox" :disabled="busy || locked" />生成封面</label>
+        <p v-if="mode === 'planned'" class="input-hint">{{ generationHint }}</p>
         <ReferenceSelection :model-value="selections.reference_images" :disabled="busy || locked" @open="showReferences = !showReferences" @update:model-value="editReferences" />
         <ReferencePicker v-if="showReferences" class="task-references" embedded :model-value="selections.reference_images" :disabled="busy || locked" @update:model-value="editReferences" />
         <button class="primary" type="submit" :disabled="busy || locked || !prompt.trim() || !isDesktop()">{{ mode === 'quick' ? '生成图片' : '生成计划' }}</button>
@@ -305,6 +316,8 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
           <div class="task-modes"><button type="button" :disabled="busy" @click="switchMode('quick')">快速生成</button><button type="button" :disabled="busy" @click="switchMode('planned')">规划生成</button></div>
           <label v-for="option in optionCategories" :key="option.key">{{ categoryLabels[option.key] }}<select :value="selections[option.key] ?? ''" :disabled="busy || locked" @change="editSelection(option.key, ($event.target as HTMLSelectElement).value || undefined)"><option value="">自动</option><option v-for="o in generationOptions[option.key]" :key="o.id" :value="o.id">{{ o.id }} · {{ o.name }}</option></select></label>
           <label v-if="mode === 'planned'">生成数量<select v-model="count" :disabled="busy"><option :value="null">自动规划</option><option v-for="n in 12" :key="n" :value="n">{{ n }} 张</option></select></label>
+          <label v-if="mode === 'planned'" class="cover-option"><input v-model="includeCover" type="checkbox" :disabled="busy || locked" />生成封面</label>
+          <p v-if="mode === 'planned'" class="input-hint">{{ generationHint }}</p>
           <ReferenceSelection :model-value="selections.reference_images" :disabled="busy || locked" @open="showReferences = !showReferences" @update:model-value="editReferences" />
           <ReferencePicker v-if="showReferences" class="task-references" embedded :model-value="selections.reference_images" :disabled="busy || locked" @update:model-value="editReferences" />
         </details>
@@ -321,6 +334,9 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(autosave); clearInterval(t
   </section>
 </template>
 <style scoped>
+.planning-options { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.cover-option { display: inline-flex; align-items: center; gap: 6px; }
+.cover-option input { width: auto; accent-color: var(--green); }
 .task-library, .task-detail, .task-editor { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .task-references { height: 440px; flex: none; }
 .task-library input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
