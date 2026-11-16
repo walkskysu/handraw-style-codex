@@ -188,6 +188,7 @@ async fn gallery_group_detail(
     tauri::async_runtime::spawn_blocking(move || {
         with_gallery(&app, |s| {
             let mut detail = s.store(&app)?.group_detail(&id, deleted)?;
+            detail.thumbnails = s.store(&app)?.photo_thumbnails(&detail.photos);
             if let Some(group) = s.pending_groups.get(&id) {
                 let cover_id = detail.group.cover_id;
                 detail.group = group.clone();

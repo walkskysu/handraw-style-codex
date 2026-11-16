@@ -117,6 +117,7 @@ pub struct GroupPage {
 pub struct GroupDetail {
     pub group: PhotoGroup,
     pub photos: Vec<Artwork>,
+    pub thumbnails: std::collections::HashMap<String, String>,
     pub source_available: bool,
 }
 
@@ -200,8 +201,26 @@ impl Store {
         Ok(GroupDetail {
             group,
             photos,
+            thumbnails: Default::default(),
             source_available,
         })
+    }
+
+    // Send small previews only at the UI boundary; internal group operations need no images.
+    pub fn photo_thumbnails(
+        &self,
+        photos: &[Artwork],
+    ) -> std::collections::HashMap<String, String> {
+        photos
+            .iter()
+            .filter_map(|photo| {
+                let bytes = fs::read(self.path(&photo.thumbnail_path).ok()?).ok()?;
+                Some((
+                    photo.id.clone(),
+                    format!("data:image/webp;base64,{}", STANDARD.encode(bytes)),
+                ))
+            })
+            .collect()
     }
 
     pub fn set_cover(&self, group_id: &str, photo_id: &str) -> Result<PhotoGroup> {
@@ -614,6 +633,42 @@ mod tests {
             .is_err());
         assert!(photos.iter().all(|a| !store.get(&a.id).unwrap().deleted));
         assert!(!store.group(&g.id).unwrap().deleted);
+    }
+
+    #[test]
+    fn detail_thumbnails_are_keyed_by_photo_and_tolerate_missing_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().into()).unwrap();
+        let (g, photos) = create(&store, 5);
+        let detail = store.group_detail(&g.id, false).unwrap();
+        let thumbnails = store.photo_thumbnails(&detail.photos);
+        assert_eq!(thumbnails.len(), 5);
+        for photo in &photos {
+            let encoded = thumbnails[&photo.id]
+                .strip_prefix("data:image/webp;base64,")
+                .unwrap();
+            let bytes = STANDARD.decode(encoded).unwrap();
+            assert_eq!(
+                bytes,
+                fs::read(store.path(&photo.thumbnail_path).unwrap()).unwrap()
+            );
+        }
+        fs::remove_file(store.path(&photos[2].thumbnail_path).unwrap()).unwrap();
+        let thumbnails = store.photo_thumbnails(&detail.photos);
+        assert_eq!(thumbnails.len(), 4);
+        assert!(!thumbnails.contains_key(&photos[2].id));
+        let a = &photos[0];
+        store
+            .update(&a.id, a.title.clone(), a.tags.clone(), a.favorite, true)
+            .unwrap();
+        let deleted = store.group_detail(&g.id, true).unwrap();
+        assert_eq!(store.photo_thumbnails(&deleted.photos).len(), 1);
+        assert_eq!(
+            store
+                .photo_thumbnails(&store.group_detail(&g.id, false).unwrap().photos)
+                .len(),
+            3
+        );
     }
 
     #[test]

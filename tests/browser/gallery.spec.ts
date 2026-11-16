@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 
 const image = `data:image/png;base64,${readFileSync('src-tauri/icons/icon.png').toString('base64')}`
 
-for (const width of [1440, 360]) {
+for (const width of [1440, 1024, 360]) {
   test(`gallery and native detail dialog remain accessible at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
     await page.addInitScript(({ image }) => {
@@ -19,7 +19,7 @@ for (const width of [1440, 360]) {
       Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
         invoke: async (command: string, args: { id: string }) => {
           if (command === 'gallery_list') return { items: Array.from({ length: 9 }, (_, i) => ({ ...group, id: String(i), thumbnail: image, thumbnails: [image, image, image], photo_count: 4, pending_count: 0, matching_count: 1, matching_ids: [photos[0]!.id] })), total: 9, page: 1, photo_total: 36 }
-          if (command === 'gallery_group_detail') return { group, photos }
+          if (command === 'gallery_group_detail') return { group, photos, thumbnails: Object.fromEntries(photos.map(photo => [photo.id, image])) }
           if (command === 'gallery_detail') return [photos.find(photo => photo.id === args.id), image]
           throw new Error(`Unexpected command: ${command}`)
         },
@@ -35,18 +35,43 @@ for (const width of [1440, 360]) {
     await page.locator('.gallery-card').first().click()
     const dialog = page.getByRole('dialog', { name: '作品详情' })
     await expect(dialog).toBeVisible()
+    await expect(dialog.getByLabel('组标题', { exact: true })).toHaveCount(0)
+    await expect(dialog.getByLabel('标题', { exact: true })).toHaveCount(0)
+    await expect(dialog.getByRole('heading', { name: '窗边的小猫' })).toBeVisible()
+    await expect(dialog.locator('.artwork-thumbnails img')).toHaveCount(4)
+    await expect(dialog.getByText('原始的完整手绘规范', { exact: true })).not.toBeVisible()
+    await dialog.getByText('完整提示词与参数', { exact: true }).click()
+    await expect(dialog.getByText('原始的完整手绘规范', { exact: true })).toBeVisible()
+    await dialog.getByText('完整提示词与参数', { exact: true }).click()
     await expect(dialog.locator('.photo-navigation button')).toHaveCount(4)
     await expect(dialog.locator('.photo-navigation button').first()).toHaveAttribute('aria-pressed', 'true')
     await dialog.locator('.photo-navigation button').nth(2).click()
     await expect(dialog.locator('.photo-navigation button').nth(2)).toHaveAttribute('aria-pressed', 'true')
+    await expect(dialog.locator('.artwork-image-footer')).toContainText('3 / 4')
+    await dialog.getByRole('button', { name: '放大查看图片', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: '放大查看图片', exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeVisible()
+    await expect(page.getByRole('dialog', { name: '放大查看图片', exact: true })).not.toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('group-detail.png') })
     expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
     const left = await dialog.locator('.artwork-original').boundingBox()
     const right = await dialog.locator('.artwork-info').boundingBox()
     if (width > 900) expect(right!.x).toBeGreaterThan(left!.x + left!.width)
     else expect(right!.y).toBeGreaterThan(left!.y + left!.height)
+    await dialog.getByRole('button', { name: '更多作品操作' }).click()
     await dialog.getByRole('button', { name: '删除此图', exact: true }).scrollIntoViewIfNeeded()
     await expect(dialog.getByRole('button', { name: '删除此图', exact: true })).toBeInViewport()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('button', { name: '更多作品操作' })).toBeFocused()
+    await dialog.locator('[aria-controls="group-menu"]').click()
+    await expect(dialog.getByLabel('组标题', { exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await dialog.locator('[aria-controls="export-menu"]').click()
+    await expect(dialog.getByRole('button', { name: '导出此图', exact: true })).toBeInViewport()
+    await expect(dialog.getByRole('button', { name: '导出整组', exact: true })).toBeInViewport()
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await expect(dialog).not.toBeVisible()
     await expect(page.locator('.gallery-card').first()).toBeFocused()
