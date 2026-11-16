@@ -3,7 +3,7 @@ use crate::{gallery::Artwork, groups::PhotoGroup};
 use rusqlite::{params, Connection};
 use std::{collections::BTreeMap, fs, path::Path};
 
-pub const VERSION: i64 = 1;
+pub const VERSION: i64 = 2;
 type Result<T> = std::result::Result<T, String>;
 const ARTWORKS: &str = "CREATE TABLE artworks(id TEXT PRIMARY KEY,title TEXT NOT NULL,prompt TEXT NOT NULL,created_at TEXT NOT NULL,favorite INTEGER NOT NULL DEFAULT 0,deleted INTEGER NOT NULL DEFAULT 0,metadata TEXT NOT NULL);";
 
@@ -34,6 +34,25 @@ pub fn migrate(db: &Connection, root: &Path) -> Result<()> {
     }
     if version == VERSION {
         return validate_managed(db);
+    }
+    if version == 1 {
+        validate_managed(db)?;
+        check_space(db, root)?;
+        let folder = root.join("backups");
+        fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+        let backup = folder.join(format!("gallery-v1-{}.db", uuid::Uuid::new_v4()));
+        db.backup("main", &backup, None)
+            .map_err(|e| format!("备份失败，停止升级：{e}"))?;
+        let checked =
+            Connection::open_with_flags(&backup, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .map_err(|e| e.to_string())?;
+        let integrity: String = checked
+            .query_row("PRAGMA integrity_check", [], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        if integrity != "ok" {
+            return Err("备份校验失败，停止升级".into());
+        }
+        return migrate_cover(db);
     }
     let existing = tables(db)?;
     if existing
@@ -246,9 +265,34 @@ pub fn migrate(db: &Connection, root: &Path) -> Result<()> {
     )
     .map_err(|e| e.to_string())?;
     db.execute("INSERT INTO migration_summary VALUES(?)",[serde_json::json!({"artworks":photos.len(),"groups":groups.len(),"repaired_positions":repaired_positions,"backup_directory":root.join("backups")}).to_string()]).map_err(|e|e.to_string())?;
-    db.pragma_update(None, "user_version", VERSION)
+    db.pragma_update(None, "user_version", 1)
         .map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())
+    tx.commit().map_err(|e| e.to_string())?;
+    migrate_cover(db)
+}
+
+fn migrate_cover(db: &Connection) -> Result<()> {
+    // SQLite requires rebuilding the table to change its CHECK constraint. Keep
+    // child references pointing at the original name throughout the transaction.
+    db.pragma_update(None, "foreign_keys", false)
+        .map_err(|e| e.to_string())?;
+    let result = (|| {
+        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
+        db.execute_batch(include_str!("schema-cover.sql"))
+            .map_err(|e| e.to_string())?;
+        validate_managed(db)?;
+        db.execute(
+            "INSERT INTO schema_migrations VALUES(2,'optional planning cover',?,?)",
+            params![env!("CARGO_PKG_VERSION"), chrono::Utc::now().to_rfc3339()],
+        )
+        .map_err(|e| e.to_string())?;
+        db.pragma_update(None, "user_version", VERSION)
+            .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())
+    })();
+    db.pragma_update(None, "foreign_keys", true)
+        .map_err(|e| e.to_string())?;
+    result
 }
 
 fn validate_managed(db: &Connection) -> Result<()> {

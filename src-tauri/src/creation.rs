@@ -36,6 +36,8 @@ pub struct DraftInput {
     reuse_id: Option<String>,
     reuse_job_id: Option<String>,
     requested_count: Option<usize>,
+    #[serde(default)]
+    include_cover: bool,
     feedback: String,
     input_revision: Option<u64>,
 }
@@ -76,6 +78,7 @@ pub fn draft_update(app: tauri::AppHandle, input: DraftInput) -> Result<Draft> {
             input.prompt,
             snapshot,
             input.requested_count,
+            input.include_cover,
             input.feedback,
             input.input_revision,
         )?;

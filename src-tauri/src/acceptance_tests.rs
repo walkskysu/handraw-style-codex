@@ -17,6 +17,7 @@ fn draft(s: &Store, mode: &str, count: Option<usize>) -> Draft {
         "三张猫咪变体".into(),
         Snapshot::default(),
         count,
+        false,
         String::new(),
         None,
     )
@@ -50,6 +51,7 @@ fn references_survive_restart_planned_and_quick_jobs_and_retry_while_edits_inval
                 "参考图 1 的人物，参考图 2 的风格".into(),
                 snapshot.clone(),
                 Some(1),
+                false,
                 "".into(),
                 None,
             )
@@ -99,6 +101,7 @@ fn references_survive_restart_planned_and_quick_jobs_and_retry_while_edits_inval
                 d.prompt.clone(),
                 snapshot.clone(),
                 Some(1),
+                false,
                 "".into(),
                 None,
             )
@@ -114,6 +117,7 @@ fn references_survive_restart_planned_and_quick_jobs_and_retry_while_edits_inval
                     ..snapshot
                 },
                 Some(1),
+                false,
                 "".into(),
                 Some(copied.input_revision),
             )
@@ -224,6 +228,7 @@ fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
             "  ".into(),
             Snapshot::default(),
             None,
+            false,
             "".into(),
             None
         )
@@ -237,6 +242,7 @@ fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
             first.prompt.clone(),
             first.snapshot.clone(),
             Some(2),
+            false,
             "".into(),
             Some(first.input_revision),
         )
@@ -251,6 +257,7 @@ fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
             d.prompt.clone(),
             d.snapshot.clone(),
             Some(1),
+            false,
             "".into(),
             Some(d.input_revision),
         )
@@ -262,6 +269,7 @@ fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
             d.prompt.clone(),
             d.snapshot.clone(),
             Some(2),
+            false,
             "".into(),
             Some(changed.input_revision),
         )
@@ -292,6 +300,7 @@ fn one_creation_keeps_its_identity_until_execution_then_locks_input_and_plan() {
             "new input".into(),
             d.snapshot.clone(),
             Some(3),
+            false,
             "".into(),
             Some(restored.input_revision)
         )
@@ -341,6 +350,7 @@ fn quick_execution_cannot_be_restarted_with_a_new_key_or_edited_after_completion
             "different".into(),
             d.snapshot.clone(),
             None,
+            false,
             "".into(),
             Some(d.input_revision)
         )
@@ -352,6 +362,7 @@ fn quick_execution_cannot_be_restarted_with_a_new_key_or_edited_after_completion
             d.prompt.clone(),
             d.snapshot.clone(),
             d.requested_count,
+            false,
             "".into(),
             None,
         )
@@ -484,6 +495,204 @@ fn plans_require_current_revision_hash_applied_feedback_and_explicit_confirmatio
         .is_err());
     assert!(s.select_plan(&d.id, &first.id).is_err());
 }
+#[test]
+fn optional_cover_counts_persist_and_create_all_slots() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let original = draft(&s, "planned", Some(4));
+    let old_plan = s.save_plan(&original, content(4), None).unwrap();
+    let d = s
+        .save_draft(
+            Some(original.id.clone()),
+            original.mode.clone(),
+            original.prompt.clone(),
+            original.snapshot.clone(),
+            Some(4),
+            true,
+            "".into(),
+            Some(original.input_revision),
+        )
+        .unwrap();
+    assert_eq!(d.input_revision, original.input_revision + 1);
+    assert_ne!(d.input_hash().unwrap(), original.input_hash().unwrap());
+    assert!(s.select_plan(&d.id, &old_plan.id).is_err());
+    assert_eq!(planning::count(&d).unwrap(), Some(5));
+    assert!(planning::validate(&content(4), &d).is_err());
+    assert!(planning::validate(&content(5), &d).is_ok());
+    let instructions = planning::instructions(&d, None).unwrap();
+    assert!(instructions.contains("exactly one additional cover image"));
+    assert!(instructions.contains("Total image quantity constraint: Some(5)"));
+    drop(s);
+    let s = Store::open(dir.path().into()).unwrap();
+    let mut d = s.draft(&d.id).unwrap();
+    assert!(d.include_cover);
+    d.requested_count = Some(12);
+    s.put_draft(&d).unwrap();
+    let p = s.save_plan(&d, content(13), None).unwrap();
+    let j = s
+        .start_job(
+            &d.id,
+            d.input_revision,
+            Some((&p.id, &p.content_hash)),
+            "cover-13",
+        )
+        .unwrap();
+    assert_eq!(j.expected_count, 13);
+    assert_eq!(s.items(&j.id).unwrap().len(), 13);
+    assert!(
+        s.snapshot_job(&j.id)
+            .unwrap()
+            .job
+            .input
+            .unwrap()
+            .include_cover
+    );
+    d.requested_count = Some(13);
+    assert!(planning::count(&d).is_err());
+    d.requested_count = None;
+    assert_eq!(planning::count(&d).unwrap(), Some(4)); // Three in the prompt, plus cover.
+    d.prompt = "猫咪".into();
+    assert_eq!(planning::count(&d).unwrap(), None);
+    assert!(planning::validate(&content(1), &d).is_err());
+    assert!(planning::validate(&content(2), &d).is_ok());
+    assert!(planning::validate(&content(13), &d).is_ok());
+    assert!(planning::validate(&content(14), &d).is_err());
+    d.include_cover = false;
+    assert!(planning::validate(&content(13), &d).is_err());
+    assert!(planning::validate(&content(12), &d).is_ok());
+    let quick = s
+        .save_draft(
+            None,
+            "quick".into(),
+            "猫".into(),
+            Snapshot::default(),
+            Some(1),
+            true,
+            "".into(),
+            None,
+        )
+        .unwrap();
+    assert!(!quick.include_cover);
+    assert_eq!(
+        s.start_job(&quick.id, quick.input_revision, None, "quick-cover")
+            .unwrap()
+            .expected_count,
+        1
+    );
+}
+
+#[test]
+fn old_drafts_default_to_no_cover_and_keep_their_plan_hashes() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let d = draft(&s, "planned", Some(4));
+    let mut value = serde_json::to_value(&d).unwrap();
+    value.as_object_mut().unwrap().remove("include_cover");
+    let restored: Draft = serde_json::from_value(value).unwrap();
+    assert!(!restored.include_cover);
+    let legacy_hash = planning::hash(
+        &planning::json(&(&d.prompt, &d.snapshot, d.requested_count, d.input_revision)).unwrap(),
+    );
+    assert_eq!(restored.input_hash().unwrap(), legacy_hash);
+    assert_eq!(planning::count(&restored).unwrap(), Some(4));
+}
+
+#[test]
+fn cover_migration_preserves_existing_jobs_and_reopens_idempotently() {
+    let dir = tempfile::tempdir().unwrap();
+    let s = Store::open(dir.path().into()).unwrap();
+    let d = draft(&s, "quick", Some(1));
+    let j = s
+        .start_job(&d.id, d.input_revision, None, "existing")
+        .unwrap();
+    let (item, attempt) = s.next_item(&j.id).unwrap().unwrap();
+    // Recreate the v1 constraint with existing parent/child records intact.
+    let v1 = include_str!("schema-cover.sql").replace(
+        "(12 + CASE WHEN mode='planned' AND json_extract(metadata,'$.input.include_cover')=1 THEN 1 ELSE 0 END)", "12");
+    s.db.execute_batch("PRAGMA foreign_keys=OFF").unwrap();
+    s.db.execute_batch(&v1).unwrap();
+    s.db.execute_batch("DELETE FROM schema_migrations WHERE version=2; PRAGMA user_version=1; PRAGMA foreign_keys=ON").unwrap();
+    s.db.execute_batch("CREATE TRIGGER reject_cover_migration BEFORE INSERT ON schema_migrations WHEN NEW.version=2 BEGIN SELECT RAISE(ABORT,'fixture migration failure'); END;").unwrap();
+    assert!(crate::migrations::migrate(&s.db, dir.path()).is_err());
+    assert_eq!(
+        s.db.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        s.db.query_row("PRAGMA foreign_keys", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(s.item(&item.id).unwrap().job_id, j.id);
+    s.db.execute_batch("DROP TRIGGER reject_cover_migration")
+        .unwrap();
+    crate::migrations::migrate(&s.db, dir.path()).unwrap();
+    assert_eq!(s.job(&j.id).unwrap().idempotency_key, "existing");
+    assert_eq!(s.item(&item.id).unwrap().job_id, j.id);
+    assert_eq!(s.attempt(&attempt.id).unwrap().item_id, item.id);
+    let backup = fs::read_dir(dir.path().join("backups"))
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .find(|p| p.extension().is_some_and(|e| e == "db"))
+        .unwrap();
+    let db = Connection::open(backup).unwrap();
+    assert_eq!(
+        db.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        db.query_row("SELECT count(*) FROM generation_jobs", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    drop(db);
+    let covered = s
+        .save_draft(
+            None,
+            "planned".into(),
+            "猫".into(),
+            Snapshot::default(),
+            Some(12),
+            true,
+            "".into(),
+            None,
+        )
+        .unwrap();
+    let p = s.save_plan(&covered, content(13), None).unwrap();
+    // The first job is no longer active so another job can be admitted.
+    s.fail_item(&item, &attempt, "fixture".into(), true)
+        .unwrap();
+    assert_eq!(
+        s.start_job(
+            &covered.id,
+            covered.input_revision,
+            Some((&p.id, &p.content_hash)),
+            "after-migration"
+        )
+        .unwrap()
+        .expected_count,
+        13
+    );
+    drop(s);
+    let s = Store::open(dir.path().into()).unwrap();
+    assert_eq!(s.items(&j.id).unwrap().len(), 1);
+    assert_eq!(
+        fs::read_dir(dir.path().join("backups"))
+            .unwrap()
+            .filter(|e| e
+                .as_ref()
+                .unwrap()
+                .path()
+                .extension()
+                .is_some_and(|ext| ext == "db"))
+            .count(),
+        2
+    );
+}
+
 #[test]
 fn planner_validates_count_structure_and_limits() {
     let dir = tempfile::tempdir().unwrap();
@@ -806,7 +1015,7 @@ fn both_legacy_schemas_migrate_without_losing_metadata_and_wal_backup_has_commit
         assert_eq!(
             db.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            1
+            crate::migrations::VERSION
         );
         let backup = fs::read_dir(dir.path().join("backups"))
             .unwrap()
@@ -853,7 +1062,7 @@ fn both_legacy_schemas_migrate_without_losing_metadata_and_wal_backup_has_commit
             s.db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
                 .get::<_, i64>(0))
                 .unwrap(),
-            1
+            crate::migrations::VERSION
         );
         drop(s);
         assert!(Store::open(dir.path().into()).is_ok());

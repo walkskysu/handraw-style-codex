@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { GenerationSelections } from './generationOptions'
 import type { Snapshot } from './gallery'
 export type Mode = 'quick' | 'planned'
-export interface Draft { id: string; mode: Mode; prompt: string; snapshot: Snapshot; requested_count: number | null; input_revision: number; current_plan_id: string | null; feedback_draft: string; updated_at: string }
+export interface Draft { id: string; mode: Mode; prompt: string; snapshot: Snapshot; requested_count: number | null; include_cover?: boolean; input_revision: number; current_plan_id: string | null; feedback_draft: string; updated_at: string }
 export interface PlanItem { id: string; position: number; title: string; copy: string; description: string; requirements: string }
 export interface Plan { id: string; draft_id: string; version: number; input_revision: number; input_hash: string; content_hash: string; snapshot: Snapshot; original_prompt: string; confirmed_at: string | null; content: { title: string; goal: string; audience: string; kind: string; visual: string; dimensions: string; verification: string; change_summary: string; items: PlanItem[] } }
 export interface PlanningJob { id: string; draft_id: string; status: string; revision: number; error: string | null; output_plan_id: string | null; updated_at?: string }
@@ -13,7 +13,7 @@ export interface Library { warnings?: string[]; drafts: Draft[]; plans: Plan[]; 
 export interface Notice { job_id: string; revision: number; event_type: string }
 export const active = (status: string) => ['queued', 'running', 'stopping'].includes(status)
 export const label = (status: string) => ({ queued: '等待', running: '生成中', generating: '生成中', generated: '已生成', stopping: '当前图片完成后停止', paused: '已暂停', interrupted: '已中断', completed: '已完成', complete: '已完成', partial: '部分完成', failed: '失败', cancelled: '已停止', pending: '待保存', save_failed: '保存失败', saved: '已保存', missing: '文件不可用', none: '未生成', discarded: '已放弃暂存（未入库）' })[status] ?? status
-export const saveDraft = (input: { id?: string; mode: Mode; prompt: string; selections: GenerationSelections; reuse_id?: string; reuse_job_id?: string; requested_count: number | null; feedback: string; input_revision?: number }) => invoke<Draft>('draft_update', { input })
+export const saveDraft = (input: { id?: string; mode: Mode; prompt: string; selections: GenerationSelections; reuse_id?: string; reuse_job_id?: string; requested_count: number | null; include_cover?: boolean; feedback: string; input_revision?: number }) => invoke<Draft>('draft_update', { input })
 export const library = () => invoke<Library>('job_list')
 export const snapshot = (id: string) => invoke<JobSnapshot>('job_get', { id })
 export const planCreate = (d: Draft, basePlanId?: string) => invoke<string>('plan_create', { draftId: d.id, inputRevision: d.input_revision, basePlanId })

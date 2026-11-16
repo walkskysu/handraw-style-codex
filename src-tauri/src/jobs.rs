@@ -119,6 +119,7 @@ impl Store {
                 prompt: group.prompt,
                 snapshot: group.snapshot,
                 requested_count: Some(job.expected_count),
+                include_cover: false,
                 input_revision: job.input_revision,
                 current_plan_id: job.plan_id.clone(),
                 feedback_draft: String::new(),

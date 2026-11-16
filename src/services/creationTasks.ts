@@ -27,7 +27,7 @@ export function creationTasks(data: Library): CreationTask[] {
       .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))[0]
     const status = planning && active(planning.status) ? '规划中' : planning?.error ? '失败' : plan ? '待确认' : '草稿'
     return { id: draft.id, draft, title: plan?.content.title || draft.prompt.slice(0, 80) || '未命名创作', prompt: draft.prompt,
-      mode: draft.mode, count: draft.mode === 'quick' ? 1 : plan?.content.items.length ?? draft.requested_count,
+      mode: draft.mode, count: draft.mode === 'quick' ? 1 : plan?.content.items.length ?? (draft.requested_count === null ? null : draft.requested_count + Number(draft.include_cover ?? false)),
       status, filter: status === '草稿' ? 'draft' : status === '规划中' ? 'active' : 'attention',
       updatedAt: [draft.updated_at, planning?.updated_at ?? ''].sort().at(-1)! }
   })
