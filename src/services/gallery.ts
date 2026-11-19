@@ -33,7 +33,7 @@ export interface PhotoGroup {
   expected_count: number; generated_count: number; generation_errors: string[]
   source_group_id: string | null; source_photo_id: string | null; deleted: boolean
 }
-export interface GroupDetail { group: PhotoGroup; photos: Artwork[]; source_available?: boolean }
+export interface GroupDetail { group: PhotoGroup; photos: Artwork[]; thumbnails?: Record<string, string>; source_available?: boolean }
 export interface GalleryCard extends PhotoGroup {
   thumbnail: string; thumbnails: string[]; photo_count: number; pending_count: number; matching_ids: string[]; matching_count: number
 }
